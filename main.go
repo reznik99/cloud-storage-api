@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
@@ -64,11 +63,7 @@ func main() {
 	router.Use(middleware.LogHandler(logger))
 	router.Use(middleware.ErrorHandler(logger))
 	router.Use(handler.InitCookieStore())
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://localhost:8080", "http://localhost:5173"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	router.Use(handler.InitCors())
 
 	// Register routes
 	logger.Info("Registering api routes...")

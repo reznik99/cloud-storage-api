@@ -2,12 +2,24 @@ package internal
 
 import (
 	"os"
+	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 )
+
+// InitCors parses env variables for allowed cors origins and creates a cors config, then returns middleware func for gin
+func (h *Handler) InitCors() gin.HandlerFunc {
+	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	return cors.New(cors.Config{
+		AllowOrigins:     allowedOrigins,
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	})
+}
 
 // InitCookieStore parses env variables for cookie key and duration, creates session storage and returns middleware func for gin
 func (h *Handler) InitCookieStore() gin.HandlerFunc {
