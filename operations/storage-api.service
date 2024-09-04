@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloud Storage API
+ConditionPathExists=/home/Storage-Backend/
+After=network.target
+ 
+[Service]
+Type=simple
+User=<user>
+Group=<group>
+Restart=on-failure
+RestartSec=5
+WorkingDirectory=/home/Storage-Backend/
+ExecStart=/home/Storage-Backend/storage-api
+SyslogIdentifier=storage-api
+ 
+[Install]
+WantedBy=multi-user.target
