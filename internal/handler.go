@@ -181,8 +181,6 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 
 	// Read file from disk and write to response
 	c.File(filepath.Join(h.FileStoragePath, location))
-
-	c.JSON(http.StatusOK, nil)
 }
 
 func (h *Handler) DeleteFile(c *gin.Context) {
