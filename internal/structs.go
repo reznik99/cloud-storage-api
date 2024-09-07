@@ -25,12 +25,12 @@ type CreateLinkReq struct {
 	Name string `json:"name"`
 }
 type LinkRes struct {
-	Id          int32     `json:"id"`
 	AccessKey   string    `json:"access_key"`
 	AccessCount int64     `json:"access_count"`
 	FileId      int32     `json:"file_id"`
 	CreatedBy   int32     `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
+	Url         string    `json:"url"`
 }
 
 // Substructures

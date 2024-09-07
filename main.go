@@ -77,9 +77,9 @@ func main() {
 	router.GET("/api/file", middleware.Protected(handler.DownloadFile))
 	router.DELETE("/api/file", middleware.Protected(handler.DeleteFile))
 	// Links
-	router.GET("api/link", middleware.Protected(handler.GetLink))
-	router.DELETE("api/link", middleware.Protected(handler.DeleteLink))
-	router.POST("api/link", middleware.Protected(handler.CreateLink))
+	router.GET("/api/link", middleware.Protected(handler.GetLink))
+	router.DELETE("/api/link", middleware.Protected(handler.DeleteLink))
+	router.POST("/api/link", middleware.Protected(handler.CreateLink))
 
 	listenAddr := fmt.Sprintf("%s:%s", os.Getenv("LISTEN_ADDR"), os.Getenv("LISTEN_PORT"))
 	logger.Infof("Cloud-Storage API (%s) is online '%s'", Version, listenAddr)

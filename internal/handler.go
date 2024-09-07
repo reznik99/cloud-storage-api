@@ -266,6 +266,7 @@ func (h *Handler) CreateLink(c *gin.Context) {
 		FileId:      dbFile.Id,
 		CreatedBy:   userID,
 		CreatedAt:   time.Now(),
+		Url:         c.Request.Host + "/share/" + accessKey,
 	})
 }
 
@@ -296,12 +297,12 @@ func (h *Handler) GetLink(c *gin.Context) {
 	h.Logger.Infof("Found link: %+v", dbLink)
 
 	c.JSON(http.StatusOK, &LinkRes{
-		Id:          dbFile.Id,
 		AccessKey:   dbLink.AccessKey,
 		AccessCount: dbLink.AccessCount,
 		FileId:      dbLink.FileId,
 		CreatedBy:   dbLink.CreatedBy,
 		CreatedAt:   dbLink.CreatedAt,
+		Url:         c.Request.Host + "/share/" + dbLink.AccessKey,
 	})
 }
 
