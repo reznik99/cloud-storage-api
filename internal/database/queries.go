@@ -50,6 +50,25 @@ func GetFileByName(db *sql.DB, user_id int32, file_name string) (*DBFile, bool, 
 	return dbFile, true, nil
 }
 
+func GetFileById(db *sql.DB, file_id int32) (*DBFile, bool, error) {
+	rows, err := db.Query(`SELECT id, user_id, location, file_name, file_size, created_at FROM files WHERE id = $1`, file_id)
+	if err != nil {
+		return nil, false, err
+	}
+	if !rows.Next() {
+		return nil, false, nil
+	}
+	defer rows.Close()
+
+	dbFile := &DBFile{}
+	err = rows.Scan(&dbFile.Id, &dbFile.UserId, &dbFile.Location, &dbFile.FileName, &dbFile.FileSize, &dbFile.CreatedAt)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return dbFile, true, nil
+}
+
 func GetLinkByFileId(db *sql.DB, user_id int32, file_id int32) (*DBLink, bool, error) {
 	stmt := `SELECT id, access_key, access_count, file_id, created_by, created_at FROM links WHERE created_by=$1 AND file_id=$2`
 	rows, err := db.Query(stmt, user_id, file_id)

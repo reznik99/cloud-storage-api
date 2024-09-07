@@ -244,8 +244,6 @@ func (h *Handler) CreateLink(c *gin.Context) {
 		return
 	}
 
-	h.Logger.Infof("Found file: %+v", dbFile)
-
 	random, err := generateRandomBytes(16)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -266,7 +264,7 @@ func (h *Handler) CreateLink(c *gin.Context) {
 		FileId:      dbFile.Id,
 		CreatedBy:   userID,
 		CreatedAt:   time.Now(),
-		Url:         c.Request.Host + "/share/" + accessKey,
+		Url:         accessKey,
 	})
 }
 
@@ -283,7 +281,6 @@ func (h *Handler) GetLink(c *gin.Context) {
 		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
 		return
 	}
-	h.Logger.Infof("Found file: %+v", dbFile)
 
 	dbLink, found, err := database.GetLinkByFileId(h.Database, userID, dbFile.Id)
 	if err != nil {
@@ -294,7 +291,6 @@ func (h *Handler) GetLink(c *gin.Context) {
 		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
 		return
 	}
-	h.Logger.Infof("Found link: %+v", dbLink)
 
 	c.JSON(http.StatusOK, &LinkRes{
 		AccessKey:   dbLink.AccessKey,
@@ -302,7 +298,6 @@ func (h *Handler) GetLink(c *gin.Context) {
 		FileId:      dbLink.FileId,
 		CreatedBy:   dbLink.CreatedBy,
 		CreatedAt:   dbLink.CreatedAt,
-		Url:         c.Request.Host + "/share/" + dbLink.AccessKey,
 	})
 }
 
@@ -324,7 +319,6 @@ func (h *Handler) DeleteLink(c *gin.Context) {
 		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
 		return
 	}
-	h.Logger.Infof("Found file: %+v", dbFile)
 
 	stmt := `DELETE FROM links WHERE created_by = $1 AND file_id = $2`
 	_, err = h.Database.Exec(stmt, userID, dbFile.Id)
@@ -334,4 +328,73 @@ func (h *Handler) DeleteLink(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, nil)
+}
+
+func (h *Handler) PreviewLink(c *gin.Context) {
+	accessKey := c.Query("access_key")
+	rows, err := h.Database.Query(`SELECT file_id FROM links WHERE access_key = $1`, accessKey)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if !rows.Next() {
+		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
+		return
+	}
+
+	var file_id int32
+	if rows.Scan(&file_id) != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	dbFile, found, err := database.GetFileById(h.Database, file_id)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	if !found {
+		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		return
+	}
+
+	c.JSON(http.StatusOK, &File{
+		Name:  dbFile.FileName,
+		Size:  dbFile.FileSize,
+		Added: dbFile.CreatedAt,
+	})
+}
+
+func (h *Handler) DownloadLink(c *gin.Context) {
+	accessKey := c.Query("access_key")
+	rows, err := h.Database.Query(`SELECT file_id FROM links WHERE access_key = $1`, accessKey)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if !rows.Next() {
+		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
+		return
+	}
+
+	var file_id int32
+	if rows.Scan(&file_id) != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	dbFile, found, err := database.GetFileById(h.Database, file_id)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	if !found {
+		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		return
+	}
+
+	// Read file from disk and write to response
+	c.File(filepath.Join(h.FileStoragePath, dbFile.Location))
 }
