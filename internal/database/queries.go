@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -87,6 +88,40 @@ func GetLinkByFileId(db *sql.DB, user_id int32, file_id int32) (*DBLink, bool, e
 	}
 
 	return dbLink, true, nil
+}
+
+func UpdateLinkDownloadCount(db *sql.DB, link_id int32) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin err: %s", err)
+	}
+
+	rows, err := tx.Query(`SELECT access_count FROM links WHERE id = $1 FOR UPDATE`, link_id)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("query err: %s", err)
+	}
+	if !rows.Next() {
+		tx.Rollback()
+		return nil
+	}
+
+	var accessCount int64
+	err = rows.Scan(&accessCount)
+	if err != nil {
+		rows.Close()
+		tx.Rollback()
+		return fmt.Errorf("scan err: %s", err)
+	}
+
+	rows.Close()
+	_, err = tx.Exec(`UPDATE links SET access_count = $1 WHERE id = $2`, accessCount+1, link_id)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("exec err: %s", err)
+	}
+
+	return tx.Commit()
 }
 
 type DBFile struct {

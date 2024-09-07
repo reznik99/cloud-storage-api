@@ -368,7 +368,7 @@ func (h *Handler) PreviewLink(c *gin.Context) {
 
 func (h *Handler) DownloadLink(c *gin.Context) {
 	accessKey := c.Query("access_key")
-	rows, err := h.Database.Query(`SELECT file_id FROM links WHERE access_key = $1`, accessKey)
+	rows, err := h.Database.Query(`SELECT id, file_id FROM links WHERE access_key = $1`, accessKey)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -379,8 +379,8 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 		return
 	}
 
-	var file_id int32
-	if rows.Scan(&file_id) != nil {
+	var link_id, file_id int32
+	if rows.Scan(&link_id, &file_id) != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
@@ -394,6 +394,13 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
 		return
 	}
+
+	go func() {
+		err := database.UpdateLinkDownloadCount(h.Database, link_id)
+		if err != nil {
+			h.Logger.Warnf("Failed to update link download count: %s", err)
+		}
+	}()
 
 	// Read file from disk and write to response
 	c.File(filepath.Join(h.FileStoragePath, dbFile.Location))
