@@ -224,3 +224,113 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, nil)
 }
+
+func (h *Handler) CreateLink(c *gin.Context) {
+	var userID = c.Keys["user_id"].(int32)
+	var req = &CreateLinkReq{}
+	err := c.BindJSON(req)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	dbFile, found, err := database.GetFileByName(h.Database, userID, req.Name)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !found {
+		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		return
+	}
+
+	h.Logger.Infof("Found file: %+v", dbFile)
+
+	random, err := generateRandomBytes(16)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	accessKey := hex.EncodeToString(random)
+
+	stmt := `INSERT INTO links(access_key, access_count, file_id, created_by) VALUES($1, $2, $3, $4)`
+	_, err = h.Database.Exec(stmt, accessKey, 0, dbFile.Id, userID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, &LinkRes{
+		AccessKey:   accessKey,
+		AccessCount: 0,
+		FileId:      dbFile.Id,
+		CreatedBy:   userID,
+		CreatedAt:   time.Now(),
+	})
+}
+
+func (h *Handler) GetLink(c *gin.Context) {
+	var userID = c.Keys["user_id"].(int32)
+	fileName := c.Query("name")
+
+	dbFile, found, err := database.GetFileByName(h.Database, userID, fileName)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !found {
+		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		return
+	}
+	h.Logger.Infof("Found file: %+v", dbFile)
+
+	dbLink, found, err := database.GetLinkByFileId(h.Database, userID, dbFile.Id)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !found {
+		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
+		return
+	}
+	h.Logger.Infof("Found link: %+v", dbLink)
+
+	c.JSON(http.StatusOK, &LinkRes{
+		Id:          dbFile.Id,
+		AccessKey:   dbLink.AccessKey,
+		AccessCount: dbLink.AccessCount,
+		FileId:      dbLink.FileId,
+		CreatedBy:   dbLink.CreatedBy,
+		CreatedAt:   dbLink.CreatedAt,
+	})
+}
+
+func (h *Handler) DeleteLink(c *gin.Context) {
+	var userID = c.Keys["user_id"].(int32)
+	var req = &DeleteLinkReq{}
+	err := c.BindJSON(req)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	dbFile, found, err := database.GetFileByName(h.Database, userID, req.Name)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !found {
+		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		return
+	}
+	h.Logger.Infof("Found file: %+v", dbFile)
+
+	stmt := `DELETE FROM links WHERE created_by = $1 AND file_id = $2`
+	_, err = h.Database.Exec(stmt, userID, dbFile.Id)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, nil)
+}
