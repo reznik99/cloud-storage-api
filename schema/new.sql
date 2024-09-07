@@ -16,3 +16,13 @@ CREATE TABLE files (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE files OWNER TO gdrive;
+
+CREATE TABLE links (
+    id SERIAL PRIMARY KEY,
+    access_key VARCHAR(128) NOT NULL,
+    access_count BIGINT NOT NULL,
+    file_id SERIAL REFERENCES files(id) UNIQUE,
+    created_by SERIAL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+ALTER TABLE links OWNER TO gdrive;
