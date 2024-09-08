@@ -42,7 +42,7 @@ func (h *Handler) createCookie(c *gin.Context, id int32) {
 		Path:     "/",              // ?
 		Domain:   c.Request.Host,   // Domain for which cookie should be sent
 		MaxAge:   h.cookieDuration, // Lifespan of cookie
-		Secure:   false,            // TODO: make this true
+		Secure:   true,             // HTTPS only (except localhost)
 		HttpOnly: true,             // Always true
 		SameSite: 2,                // TODO: figure out ideal value
 	})
@@ -61,7 +61,7 @@ func (h *Handler) destroyCookie(c *gin.Context) {
 		Path:     "/",
 		Domain:   c.Request.Host,
 		MaxAge:   -1,
-		Secure:   false,
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: 2,
 	})
