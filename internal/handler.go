@@ -36,16 +36,16 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	if !found { // Email not found
-		c.AbortWithError(http.StatusBadRequest, errors.New("invalid email/password 1")) // TODO: remove identifier (testing)
+		c.AbortWithError(http.StatusBadRequest, errors.New("incorrect email address or password"))
 		return
 	}
 	match, err := ComparePassword(req.Password, passwordHash)
 	if err != nil { // Error hashing passwords
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	if !match { // Password mis-match
-		c.AbortWithError(http.StatusBadRequest, errors.New("invalid email/password 2")) // TODO: remove identifier (testing)
+		c.AbortWithError(http.StatusBadRequest, errors.New("incorrect email address or password"))
 		return
 	}
 
