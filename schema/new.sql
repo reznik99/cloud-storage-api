@@ -21,7 +21,7 @@ CREATE TABLE links (
     id SERIAL PRIMARY KEY,
     access_key VARCHAR(128) NOT NULL,
     access_count BIGINT NOT NULL,
-    file_id SERIAL REFERENCES files(id) UNIQUE,
+    file_id SERIAL UNIQUE REFERENCES files(id) ON DELETE CASCADE,
     created_by SERIAL REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
