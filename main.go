@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,29 +19,35 @@ var Version = "Development"
 var logger = logrus.New()
 
 func init() {
-	logger = &logrus.Logger{
-		Out: os.Stderr,
-		Formatter: &logrus.TextFormatter{
-			DisableTimestamp: false,
-			FullTimestamp:    true,
-			TimestampFormat:  time.DateTime,
-		},
-		Hooks:        logger.Hooks,
-		Level:        logger.GetLevel(),
-		ExitFunc:     os.Exit,
-		ReportCaller: false,
-	}
-	logger.SetLevel(logrus.InfoLevel)
-}
-
-func main() {
 	// Enviroment variable
 	err := godotenv.Load()
 	if err != nil {
 		logger.Fatalf("Error loading .env file: %s", err)
 	}
-	logger.Info("Loaded env variables")
 
+	enviroment := os.Getenv("ENVIROMENT")
+	disableTimestamp := false
+	if strings.EqualFold(enviroment, "Production") {
+		disableTimestamp = true
+	}
+
+	logger = &logrus.Logger{
+		Out: os.Stderr,
+		Formatter: &logrus.TextFormatter{
+			DisableTimestamp: disableTimestamp,
+			FullTimestamp:    true,
+			TimestampFormat:  time.DateTime,
+		},
+		Hooks:        logger.Hooks,
+		Level:        logrus.InfoLevel,
+		ExitFunc:     os.Exit,
+		ReportCaller: false,
+	}
+	logger.Info("Loaded env variables")
+	logger.Infof("Enviroment '%s'", enviroment)
+}
+
+func main() {
 	// Database
 	db, err := database.ConnectDB()
 	if err != nil {
