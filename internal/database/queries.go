@@ -16,11 +16,10 @@ func GetUserByEmail(db *sql.DB, emailAddress string) (id int32, email string, pa
 	if err != nil {
 		return
 	}
-	defer rows.Close()
-
 	if !rows.Next() {
 		return
 	}
+	defer rows.Close()
 
 	ok = true
 	err = rows.Scan(&id, &email, &passwordHash)

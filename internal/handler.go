@@ -167,11 +167,11 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-
 	if !rows.Next() {
 		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
 		return
 	}
+	defer rows.Close()
 
 	var location string
 	if rows.Scan(&location) != nil {
@@ -196,11 +196,11 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-
 	if !rows.Next() {
 		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
 		return
 	}
+	defer rows.Close()
 
 	var id int
 	var location string
@@ -337,11 +337,11 @@ func (h *Handler) PreviewLink(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-
 	if !rows.Next() {
 		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
 		return
 	}
+	defer rows.Close()
 
 	var file_id int32
 	if rows.Scan(&file_id) != nil {
@@ -373,11 +373,11 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-
 	if !rows.Next() {
 		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
 		return
 	}
+	defer rows.Close()
 
 	var link_id, file_id int32
 	if rows.Scan(&link_id, &file_id) != nil {
