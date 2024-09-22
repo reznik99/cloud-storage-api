@@ -26,15 +26,12 @@ func init() {
 	}
 
 	enviroment := os.Getenv("ENVIROMENT")
-	disableTimestamp := false
-	if strings.EqualFold(enviroment, "Production") {
-		disableTimestamp = true
-	}
+	isProduction := strings.EqualFold(enviroment, "Production")
 
 	logger = &logrus.Logger{
 		Out: os.Stderr,
 		Formatter: &logrus.TextFormatter{
-			DisableTimestamp: disableTimestamp,
+			DisableTimestamp: isProduction,
 			FullTimestamp:    true,
 			TimestampFormat:  time.DateTime,
 		},
@@ -44,7 +41,11 @@ func init() {
 		ReportCaller: false,
 	}
 	logger.Info("Loaded env variables")
-	logger.Infof("Enviroment '%s'", enviroment)
+	if isProduction {
+		logger.Info("Enviroment 'Production'")
+	} else {
+		logger.Info("Enviroment 'Development'")
+	}
 }
 
 func main() {

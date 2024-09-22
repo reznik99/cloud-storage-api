@@ -29,17 +29,17 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	id, _, passwordHash, found, err := database.GetUserByEmail(h.Database, req.EmailAddress)
+	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	if !found { // Email not found
+	if user == nil { // Email not found
 		c.AbortWithError(http.StatusBadRequest, errors.New("incorrect email address or password"))
 		return
 	}
-	match, err := ComparePassword(req.Password, passwordHash)
+	match, err := ComparePassword(req.Password, user.Password)
 	if err != nil { // Error hashing passwords
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -50,13 +50,17 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// Authentication succeeded, update last seen value in database
-	if err := database.UpdateLastSeen(h.Database, id); err != nil {
-		h.Logger.Warnf("Failed to update last_seen value for user %d: %s", id, err)
+	if err := database.UpdateLastSeen(h.Database, user.ID); err != nil {
+		h.Logger.Warnf("Failed to update last_seen value for user %d: %s", user.ID, err)
 	}
 
 	// Set authentication cookie
-	h.createCookie(c, id)
-	c.JSON(http.StatusOK, nil)
+	h.createCookie(c, user.ID)
+	c.JSON(http.StatusOK, LoginRes{
+		EmailAddress: user.EmailAddress,
+		CreatedAt:    user.CreatedAt,
+		LastSeen:     user.LastSeen,
+	})
 }
 
 func (h *Handler) Signup(c *gin.Context) {
@@ -67,13 +71,13 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	_, _, _, found, err := database.GetUserByEmail(h.Database, req.EmailAddress)
+	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	if found { // email address already taken
+	if user != nil { // Email address already taken
 		c.AbortWithError(http.StatusBadRequest, errors.New("email address already taken"))
 		return
 	}

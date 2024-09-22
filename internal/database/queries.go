@@ -9,21 +9,22 @@ import (
 
 var ErrNotFound = errors.New("not found in DB")
 
-func GetUserByEmail(db *sql.DB, emailAddress string) (id int32, email string, passwordHash string, ok bool, err error) {
-	ok = false
-
-	rows, err := db.Query(`SELECT id, email_address, password FROM users WHERE email_address=$1`, emailAddress)
+func GetUserByEmail(db *sql.DB, emailAddress string) (*User, error) {
+	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE email_address=$1`, emailAddress)
 	if err != nil {
-		return
+		return nil, err
 	}
 	if !rows.Next() {
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
-	ok = true
-	err = rows.Scan(&id, &email, &passwordHash)
-	return
+	user := &User{}
+	err = rows.Scan(&user.ID, &user.EmailAddress, &user.Password, &user.CreatedAt, &user.LastSeen)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func UpdateLastSeen(db *sql.DB, id int32) error {

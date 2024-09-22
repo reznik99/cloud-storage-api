@@ -8,6 +8,12 @@ type LoginReq struct {
 	EmailAddress string `json:"email_address"`
 	Password     string `json:"password"`
 }
+type LoginRes struct {
+	EmailAddress string    `json:"email_address"`
+	CreatedAt    time.Time `json:"created_at"`
+	LastSeen     time.Time `json:"last_seen"`
+}
+
 type SignupReq struct {
 	EmailAddress string `json:"email_address"`
 	Password     string `json:"password"`
