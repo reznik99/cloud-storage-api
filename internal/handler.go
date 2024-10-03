@@ -148,8 +148,11 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	}
 	location := hex.EncodeToString(random)
 
-	stmt := `INSERT INTO files(user_id, location, file_name, file_size) VALUES($1, $2, $3, $4)`
-	_, err = h.Database.Exec(stmt, c.Keys["user_id"], location, file.Filename, file.Size)
+	// For End-to-End encrypted files http.ServeFile can't detect mime-type so we save it to the database
+	fileMimeType := file.Header.Get("Content-Type")
+
+	stmt := `INSERT INTO files(user_id, location, file_name, file_size, file_type) VALUES($1, $2, $3, $4, $5)`
+	_, err = h.Database.Exec(stmt, c.Keys["user_id"], location, file.Filename, file.Size, fileMimeType)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -166,7 +169,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 
 func (h *Handler) DownloadFile(c *gin.Context) {
 	fileName := c.Query("name")
-	rows, err := h.Database.Query(`SELECT location FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName)
+	rows, err := h.Database.Query(`SELECT location, file_type FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -178,12 +181,17 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 	defer rows.Close()
 
 	var location string
-	if rows.Scan(&location) != nil {
+	var fileMimeType string
+	if rows.Scan(&location, &fileMimeType) != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	// Read file from disk and write to response
+	if fileMimeType != "" {
+		// For End-to-End encrypted files http.ServeFile can't detect mime-type so we include it from database
+		c.Header("Content-Type", fileMimeType)
+	}
+	// Read file from disk and write to response (handles partial-content/range requests)
 	c.File(filepath.Join(h.FileStoragePath, location))
 }
 
@@ -366,6 +374,7 @@ func (h *Handler) PreviewLink(c *gin.Context) {
 	c.JSON(http.StatusOK, &File{
 		Name:  dbFile.FileName,
 		Size:  dbFile.FileSize,
+		Type:  dbFile.FileType,
 		Added: dbFile.CreatedAt,
 	})
 }
@@ -406,6 +415,10 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 		}
 	}()
 
+	if dbFile.FileType != "" {
+		// For End-to-End encrypted files http.ServeFile can't detect mime-type so we include it from database
+		c.Header("Content-Type", dbFile.FileType)
+	}
 	// Read file from disk and write to response
 	c.File(filepath.Join(h.FileStoragePath, dbFile.Location))
 }

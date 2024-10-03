@@ -13,6 +13,7 @@ CREATE TABLE files (
     location VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_size BIGINT NOT NULL,
+    file_type VARCHAR(255) NOT NULL DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE files OWNER TO gdrive;

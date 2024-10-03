@@ -52,7 +52,7 @@ func GetFileByName(db *sql.DB, user_id int32, file_name string) (*DBFile, bool, 
 }
 
 func GetFileById(db *sql.DB, file_id int32) (*DBFile, bool, error) {
-	rows, err := db.Query(`SELECT id, user_id, location, file_name, file_size, created_at FROM files WHERE id = $1`, file_id)
+	rows, err := db.Query(`SELECT id, user_id, location, file_name, file_size, file_type, created_at FROM files WHERE id = $1`, file_id)
 	if err != nil {
 		return nil, false, err
 	}
@@ -62,7 +62,7 @@ func GetFileById(db *sql.DB, file_id int32) (*DBFile, bool, error) {
 	defer rows.Close()
 
 	dbFile := &DBFile{}
-	err = rows.Scan(&dbFile.Id, &dbFile.UserId, &dbFile.Location, &dbFile.FileName, &dbFile.FileSize, &dbFile.CreatedAt)
+	err = rows.Scan(&dbFile.Id, &dbFile.UserId, &dbFile.Location, &dbFile.FileName, &dbFile.FileSize, &dbFile.FileType, &dbFile.CreatedAt)
 	if err != nil {
 		return nil, false, err
 	}
@@ -130,6 +130,7 @@ type DBFile struct {
 	Location  string
 	FileName  string
 	FileSize  int64
+	FileType  string
 	CreatedAt time.Time
 }
 type DBLink struct {
