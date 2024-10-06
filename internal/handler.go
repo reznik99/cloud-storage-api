@@ -103,6 +103,21 @@ func (h *Handler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, nil)
 }
 
+func (h *Handler) Session(c *gin.Context) {
+	userId := c.Keys["user_id"].(int32)
+	user, err := database.GetUserByID(h.Database, userId)
+	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+		return
+	}
+
+	c.JSON(http.StatusOK, LoginRes{
+		EmailAddress: user.EmailAddress,
+		CreatedAt:    user.CreatedAt,
+		LastSeen:     user.LastSeen,
+	})
+}
+
 func (h *Handler) ListFiles(c *gin.Context) {
 	rows, err := h.Database.Query(`SELECT file_name, file_size, created_at FROM files WHERE user_id = $1`, c.Keys["user_id"])
 	if err != nil {

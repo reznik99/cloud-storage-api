@@ -17,6 +17,7 @@ func (h *Handler) InitCors() gin.HandlerFunc {
 	return cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowCredentials: true,
+		AllowHeaders:     []string{"content-type"},
 		MaxAge:           12 * time.Hour,
 	})
 }

@@ -27,6 +27,24 @@ func GetUserByEmail(db *sql.DB, emailAddress string) (*User, error) {
 	return user, nil
 }
 
+func GetUserByID(db *sql.DB, id int32) (*User, error) {
+	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	if !rows.Next() {
+		return nil, err
+	}
+	defer rows.Close()
+
+	user := &User{}
+	err = rows.Scan(&user.ID, &user.EmailAddress, &user.Password, &user.CreatedAt, &user.LastSeen)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func UpdateLastSeen(db *sql.DB, id int32) error {
 	_, err := db.Exec(`UPDATE users SET last_seen = $1 WHERE id = $2`, time.Now(), id)
 	return err

@@ -79,12 +79,13 @@ func main() {
 	router.POST("/api/login", handler.Login)
 	router.POST("/api/signup", handler.Signup)
 	router.POST("/api/logout", handler.Logout)
+	router.GET("/api/session", middleware.Protected(handler.Session))
 	// Files
 	router.GET("/api/files", middleware.Protected(handler.ListFiles))
 	router.POST("/api/file", middleware.Protected(handler.UploadFile))
 	router.GET("/api/file", middleware.Protected(handler.DownloadFile))
 	router.DELETE("/api/file", middleware.Protected(handler.DeleteFile))
-	// Links
+	// File Links
 	router.GET("/api/link", middleware.Protected(handler.GetLink))
 	router.DELETE("/api/link", middleware.Protected(handler.DeleteLink))
 	router.POST("/api/link", middleware.Protected(handler.CreateLink))
