@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/wneessen/go-mail"
 	"gorinidrive.com/api/internal/database"
 )
 
@@ -106,7 +108,7 @@ func (h *Handler) Logout(c *gin.Context) {
 func (h *Handler) Session(c *gin.Context) {
 	userId := c.Keys["user_id"].(int32)
 	user, err := database.GetUserByID(h.Database, userId)
-	if err != nil {
+	if err != nil || user == nil {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
 		return
 	}
@@ -436,4 +438,47 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 	}
 	// Read file from disk and write to response
 	c.File(filepath.Join(h.FileStoragePath, dbFile.Location))
+}
+
+func (h *Handler) RequestResetPassword(c *gin.Context) {
+	var userId = c.Keys["user_id"].(int32)
+	user, err := database.GetUserByID(h.Database, userId)
+	if err != nil || user == nil {
+		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+		return
+	}
+
+	// TODO: Create reset-code and store in database
+
+	// Create email
+	msg := mail.Msg{}
+	if err := msg.To(user.EmailAddress); err != nil {
+		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid email address '%s': %s", user.EmailAddress, err))
+		return
+	}
+	msg.Subject("GDrive password reset")
+	// TODO: Set HTML template
+	msg.SetBodyString(mail.TypeTextPlain, "Click here to reset your password: https://storage.francescogorini.com/reset-code")
+	// Send email
+	if err := msg.WriteToSendmail(); err != nil {
+		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("failed to send password reset email: %s", err))
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var userId = c.Keys["user_id"].(int32)
+	user, err := database.GetUserByID(h.Database, userId)
+	if err != nil || user == nil {
+		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+		return
+	}
+
+	// TODO: Get reset-code and verify against request params
+
+	// TODO: Re-hash password and store in database
+
+	c.Status(http.StatusOK)
 }
