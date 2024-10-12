@@ -40,9 +40,8 @@ type LinkRes struct {
 }
 
 type ResetPasswordReq struct {
-	EmailAddress string `json:"email_address"`
-	NewPassword  string `json:"new_password"`
-	ResetCode    string `json:"reset_code"`
+	NewPassword string `json:"new_password"`
+	ResetCode   string `json:"reset_code"`
 }
 
 // Substructures

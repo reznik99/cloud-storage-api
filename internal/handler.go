@@ -490,19 +490,8 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Get user
-	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	if user == nil {
-		c.AbortWithError(http.StatusBadRequest, nil)
-		return
-	}
-
 	// Get password reset entry
-	dbPR, err := database.GetPasswordResetByUserId(h.Database, user.ID)
+	dbPR, err := database.GetPasswordResetByCode(h.Database, req.ResetCode)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -525,7 +514,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, user.ID)
+	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, dbPR.UserId)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return

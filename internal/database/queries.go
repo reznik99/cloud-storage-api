@@ -139,8 +139,8 @@ func UpdateLinkDownloadCount(db *sql.DB, link_id int32) error {
 	return tx.Commit()
 }
 
-func GetPasswordResetByUserId(db *sql.DB, user_id int32) (*DBPasswordReset, error) {
-	rows, err := db.Query(`SELECT * FROM password_reset_code WHERE user_id = $1 LIMIT 1`, user_id)
+func GetPasswordResetByCode(db *sql.DB, reset_code string) (*DBPasswordReset, error) {
+	rows, err := db.Query(`SELECT * FROM password_reset_code WHERE reset_code = $1`, reset_code)
 	if err != nil {
 		return nil, err
 	}
