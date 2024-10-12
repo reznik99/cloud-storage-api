@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"github.com/wneessen/go-mail"
 	"gorinidrive.com/api/internal/database"
 )
 
@@ -33,7 +31,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -84,6 +82,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
+	// TODO: Validate password strength
 	passwordHash, err := HashPassword(req.Password)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -96,6 +95,8 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
+	// TODO: send email to confirm email ownership
+
 	c.JSON(http.StatusOK, nil)
 }
 
@@ -107,7 +108,7 @@ func (h *Handler) Logout(c *gin.Context) {
 
 func (h *Handler) Session(c *gin.Context) {
 	userId := c.Keys["user_id"].(int32)
-	user, err := database.GetUserByID(h.Database, userId)
+	user, err := database.GetUserById(h.Database, userId)
 	if err != nil || user == nil {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
 		return
@@ -441,23 +442,21 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 }
 
 func (h *Handler) RequestResetPassword(c *gin.Context) {
-	emailAddress := c.Query("email_address")
 	// Get user
+	emailAddress := c.Query("email_address")
 	user, err := database.GetUserByEmail(h.Database, emailAddress)
 	if err != nil {
 		h.Logger.Errorf("Failed to get user %s from database: %s", emailAddress, err)
 		c.AbortWithError(http.StatusInternalServerError, errors.New("failed to get user from database"))
 		return
 	}
-
-	// To avoid enumeration attack
 	if user == nil {
 		h.Logger.Errorf("Ignoring password reset request for non-existent user %s", emailAddress)
 		c.Status(http.StatusOK)
 		return
 	}
 
-	// Create reset-code and store in database
+	// Generate reset-code
 	randomBytes, err := generateRandomBytes(16)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -465,6 +464,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	}
 	resetCode := hex.EncodeToString(randomBytes)
 
+	// Store reset-code in database
 	_, err = h.Database.Exec(`INSERT INTO password_reset_code(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
 	if err != nil {
 		h.Logger.Errorf("Failed to save reset-code into database: %s", err)
@@ -472,23 +472,10 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Create email
-	senderEmail := os.Getenv("EMAIL_ADDRESS")
-	msg := mail.NewMsg()
-	if err := msg.From(senderEmail); err != nil {
-		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid email address '%s': %s", senderEmail, err))
-		return
-	}
-	if err := msg.To(user.EmailAddress); err != nil {
-		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid email address '%s': %s", user.EmailAddress, err))
-		return
-	}
-	msg.Subject("GDrive password reset")
-	// TODO: Set HTML template
-	msg.SetBodyString(mail.TypeTextPlain, "Click here to reset your password: https://storage.francescogorini.com/reset-code/"+resetCode)
-	// Send email
-	if err := msg.WriteToSendmail(); err != nil {
-		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("failed to send password reset email: %s", err))
+	// Send email with reset-code
+	if err := SendPasswordResetEmail(user.EmailAddress, resetCode); err != nil {
+		h.Logger.Errorf("Failed to send password reset email: %s", err)
+		c.AbortWithError(http.StatusUnauthorized, errors.New("failed to send password reset email"))
 		return
 	}
 
@@ -496,16 +483,55 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 }
 
 func (h *Handler) ResetPassword(c *gin.Context) {
-	var userId = c.Keys["user_id"].(int32)
-	user, err := database.GetUserByID(h.Database, userId)
-	if err != nil || user == nil {
-		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+	var req = &ResetPasswordReq{}
+	err := c.BindJSON(req)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	// TODO: Get reset-code and verify against request params
+	// Get user
+	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		c.AbortWithError(http.StatusBadRequest, nil)
+		return
+	}
 
-	// TODO: Re-hash password and store in database
+	// Get password reset entry
+	dbPR, err := database.GetPasswordResetByUserId(h.Database, user.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if dbPR == nil {
+		c.AbortWithError(http.StatusBadRequest, nil)
+		return
+	}
+
+	// TODO: verify reset code is recent
+	if dbPR.ResetCode != req.ResetCode {
+		c.AbortWithError(http.StatusForbidden, errors.New("reset-code invalid"))
+	}
+
+	// Re-hash password and store in database
+	// TODO: Validate password strength
+	passwordHash, err := HashPassword(req.NewPassword)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, user.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	// TODO: delete reset code
 
 	c.Status(http.StatusOK)
 }

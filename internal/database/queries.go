@@ -2,20 +2,17 @@ package database
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 )
 
-var ErrNotFound = errors.New("not found in DB")
-
-func GetUserByEmail(db *sql.DB, emailAddress string) (*User, error) {
-	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE email_address=$1`, emailAddress)
+func GetUserByEmail(db *sql.DB, email_address string) (*User, error) {
+	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE email_address=$1`, email_address)
 	if err != nil {
 		return nil, err
 	}
 	if !rows.Next() {
-		return nil, err
+		return nil, nil
 	}
 	defer rows.Close()
 
@@ -27,13 +24,13 @@ func GetUserByEmail(db *sql.DB, emailAddress string) (*User, error) {
 	return user, nil
 }
 
-func GetUserByID(db *sql.DB, id int32) (*User, error) {
+func GetUserById(db *sql.DB, id int32) (*User, error) {
 	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE id=$1`, id)
 	if err != nil {
 		return nil, err
 	}
 	if !rows.Next() {
-		return nil, err
+		return nil, nil
 	}
 	defer rows.Close()
 
@@ -142,20 +139,21 @@ func UpdateLinkDownloadCount(db *sql.DB, link_id int32) error {
 	return tx.Commit()
 }
 
-type DBFile struct {
-	Id        int32
-	UserId    int32
-	Location  string
-	FileName  string
-	FileSize  int64
-	FileType  string
-	CreatedAt time.Time
-}
-type DBLink struct {
-	Id          int32
-	AccessKey   string
-	AccessCount int64
-	FileId      int32
-	CreatedBy   int32
-	CreatedAt   time.Time
+func GetPasswordResetByUserId(db *sql.DB, user_id int32) (*DBPasswordReset, error) {
+	rows, err := db.Query(`SELECT * FROM password_reset_code WHERE user_id = $1 LIMIT 1`, user_id)
+	if err != nil {
+		return nil, err
+	}
+	if !rows.Next() {
+		return nil, nil
+	}
+	defer rows.Close()
+
+	dbPR := &DBPasswordReset{}
+	err = rows.Scan(&dbPR.Id, &dbPR.UserId, &dbPR.ResetCode, &dbPR.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return dbPR, nil
 }
