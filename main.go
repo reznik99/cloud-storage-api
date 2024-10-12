@@ -91,6 +91,8 @@ func main() {
 	router.POST("/api/link", middleware.Protected(handler.CreateLink))
 	router.GET("/api/link_preview", handler.PreviewLink)
 	router.GET("/api/link_download", handler.DownloadLink)
+	// Password Reset
+	router.GET("/api/reset_password", handler.RequestResetPassword)
 
 	listenAddr := fmt.Sprintf("%s:%s", os.Getenv("LISTEN_ADDR"), os.Getenv("LISTEN_PORT"))
 	logger.Infof("Cloud-Storage API (%s) is online '%s'", Version, listenAddr)

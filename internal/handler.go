@@ -441,24 +441,51 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 }
 
 func (h *Handler) RequestResetPassword(c *gin.Context) {
-	var userId = c.Keys["user_id"].(int32)
-	user, err := database.GetUserByID(h.Database, userId)
-	if err != nil || user == nil {
-		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+	emailAddress := c.Query("email_address")
+	// Get user
+	user, err := database.GetUserByEmail(h.Database, emailAddress)
+	if err != nil {
+		h.Logger.Errorf("Failed to get user %s from database: %s", emailAddress, err)
+		c.AbortWithError(http.StatusInternalServerError, errors.New("failed to get user from database"))
 		return
 	}
 
-	// TODO: Create reset-code and store in database
+	// To avoid enumeration attack
+	if user == nil {
+		h.Logger.Errorf("Ignoring password reset request for non-existent user %s", emailAddress)
+		c.Status(http.StatusOK)
+		return
+	}
+
+	// Create reset-code and store in database
+	randomBytes, err := generateRandomBytes(16)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	resetCode := hex.EncodeToString(randomBytes)
+
+	_, err = h.Database.Exec(`INSERT INTO password_reset_code(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
+	if err != nil {
+		h.Logger.Errorf("Failed to save reset-code into database: %s", err)
+		c.AbortWithError(http.StatusUnauthorized, errors.New("failed to save reset-code into database"))
+		return
+	}
 
 	// Create email
-	msg := mail.Msg{}
+	senderEmail := os.Getenv("EMAIL_ADDRESS")
+	msg := mail.NewMsg()
+	if err := msg.From(senderEmail); err != nil {
+		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid email address '%s': %s", senderEmail, err))
+		return
+	}
 	if err := msg.To(user.EmailAddress); err != nil {
 		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid email address '%s': %s", user.EmailAddress, err))
 		return
 	}
 	msg.Subject("GDrive password reset")
 	// TODO: Set HTML template
-	msg.SetBodyString(mail.TypeTextPlain, "Click here to reset your password: https://storage.francescogorini.com/reset-code")
+	msg.SetBodyString(mail.TypeTextPlain, "Click here to reset your password: https://storage.francescogorini.com/reset-code/"+resetCode)
 	// Send email
 	if err := msg.WriteToSendmail(); err != nil {
 		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("failed to send password reset email: %s", err))
