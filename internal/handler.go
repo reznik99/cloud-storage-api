@@ -497,30 +497,38 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 	if dbPR == nil {
-		c.AbortWithError(http.StatusBadRequest, nil)
+		// Code already used or invalid
+		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code invalid"))
+		return
+	}
+	if time.Since(dbPR.CreatedAt) > time.Minute*10 {
+		// Code expired
+		_, err = h.Database.Exec(`DELETE FROM password_reset_code WHERE id=$1`, dbPR.Id)
+		if err != nil {
+			h.Logger.Warnf("Failed to delete expired reset-code %d: %s", dbPR.Id, err)
+		}
+		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code invalid"))
 		return
 	}
 
-	// TODO: verify reset code is recent
-	if dbPR.ResetCode != req.ResetCode {
-		c.AbortWithError(http.StatusForbidden, errors.New("reset-code invalid"))
-	}
-
-	// Re-hash password and store in database
+	// Hash new password
 	// TODO: Validate password strength
 	passwordHash, err := HashPassword(req.NewPassword)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-
+	// Store new password
 	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, dbPR.UserId)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-
-	// TODO: delete reset code
+	// Delete reset-code (1 time use)
+	_, err = h.Database.Exec(`DELETE FROM password_reset_code WHERE id=$1`, dbPR.Id)
+	if err != nil {
+		h.Logger.Warnf("Failed to delete reset-code %d after successful use: %s", dbPR.Id, err)
+	}
 
 	c.Status(http.StatusOK)
 }
