@@ -9,7 +9,7 @@ ALTER TABLE users OWNER TO gdrive;
 
 CREATE TABLE files (
     id SERIAL PRIMARY KEY,
-    user_id SERIAL REFERENCES users(id),
+    user_id SERIAL REFERENCES users(id) ON DELETE CASCADE,
     location VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_size BIGINT NOT NULL,
@@ -30,7 +30,7 @@ ALTER TABLE links OWNER TO gdrive;
 
 CREATE TABLE password_reset_code (
     id SERIAL PRIMARY KEY,
-    user_id SERIAL REFERENCES users(id),
+    user_id SERIAL REFERENCES users(id) ON DELETE CASCADE,
     reset_code VARCHAR(128) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() 
 );
