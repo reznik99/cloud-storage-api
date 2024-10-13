@@ -532,3 +532,46 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 
 	c.Status(http.StatusOK)
 }
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req = &ChangePasswordReq{}
+	if err := c.BindJSON(req); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// Get user
+	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		return
+	}
+	// Compare old passwords
+	match, err := ComparePassword(req.Password, user.Password)
+	if err != nil { // Error hashing passwords
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !match { // Password mis-match
+		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		return
+	}
+	// Hash new password
+	// TODO: Validate password strength
+	passwordHash, err := HashPassword(req.NewPassword)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	// Store new password
+	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, user.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}

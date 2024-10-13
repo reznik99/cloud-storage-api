@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func GetUserByEmail(db *sql.DB, email_address string) (*User, error) {
+func GetUserByEmail(db *sql.DB, email_address string) (*DBUser, error) {
 	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE email_address=$1`, email_address)
 	if err != nil {
 		return nil, err
@@ -16,7 +16,7 @@ func GetUserByEmail(db *sql.DB, email_address string) (*User, error) {
 	}
 	defer rows.Close()
 
-	user := &User{}
+	user := &DBUser{}
 	err = rows.Scan(&user.ID, &user.EmailAddress, &user.Password, &user.CreatedAt, &user.LastSeen)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func GetUserByEmail(db *sql.DB, email_address string) (*User, error) {
 	return user, nil
 }
 
-func GetUserById(db *sql.DB, id int32) (*User, error) {
+func GetUserById(db *sql.DB, id int32) (*DBUser, error) {
 	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE id=$1`, id)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func GetUserById(db *sql.DB, id int32) (*User, error) {
 	}
 	defer rows.Close()
 
-	user := &User{}
+	user := &DBUser{}
 	err = rows.Scan(&user.ID, &user.EmailAddress, &user.Password, &user.CreatedAt, &user.LastSeen)
 	if err != nil {
 		return nil, err

@@ -44,6 +44,11 @@ type ResetPasswordReq struct {
 	ResetCode   string `json:"reset_code"`
 }
 
+type ChangePasswordReq struct {
+	Password    string `json:"password"`
+	NewPassword string `json:"new_password"`
+}
+
 // Substructures
 
 type File struct {

@@ -2,7 +2,7 @@ package database
 
 import "time"
 
-type User struct {
+type DBUser struct {
 	ID           int32
 	EmailAddress string
 	Password     string
