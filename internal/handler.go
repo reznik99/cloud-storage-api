@@ -207,7 +207,7 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 		}
 		filePath := filepath.Join(h.FileStoragePath, location)
 		if err := os.Remove(filePath); err != nil {
-			h.Logger.Errorf("Failed to delete file '%s': %s", filePath, err)
+			h.Logger.Warnf("Failed to delete file: %s", err)
 			continue
 		}
 	}

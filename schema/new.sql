@@ -23,7 +23,7 @@ CREATE TABLE links (
     access_key VARCHAR(128) NOT NULL,
     access_count BIGINT NOT NULL,
     file_id SERIAL UNIQUE REFERENCES files(id) ON DELETE CASCADE,
-    created_by SERIAL REFERENCES users(id),
+    created_by SERIAL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE links OWNER TO gdrive;
