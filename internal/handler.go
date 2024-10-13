@@ -121,6 +121,108 @@ func (h *Handler) Session(c *gin.Context) {
 	})
 }
 
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req = &ChangePasswordReq{}
+	if err := c.BindJSON(req); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// Get user
+	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		return
+	}
+	// Compare old passwords
+	match, err := ComparePassword(req.Password, user.Password)
+	if err != nil { // Error hashing passwords
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !match { // Password mis-match
+		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		return
+	}
+	// Hash new password
+	// TODO: Validate password strength
+	passwordHash, err := HashPassword(req.NewPassword)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	// Store new password
+	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, user.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, nil)
+}
+
+func (h *Handler) DeleteAccount(c *gin.Context) {
+	var req = &DeleteAccountReq{}
+	if err := c.BindJSON(req); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// Get user
+	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		return
+	}
+	// Compare passwords
+	match, err := ComparePassword(req.Password, user.Password)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if !match {
+		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		return
+	}
+	// Get files for this account
+	rows, err := h.Database.Query(`SELECT id, location FROM files WHERE user_id = $1`, user.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer rows.Close()
+	// Delete files on disk linked to this account
+	for rows.Next() {
+		var id int32
+		var location string
+		if err := rows.Scan(&id, &location); err != nil {
+			h.Logger.Errorf("Error scanning row: %s", err)
+			continue
+		}
+		filePath := filepath.Join(h.FileStoragePath, location)
+		if err := os.Remove(filePath); err != nil {
+			h.Logger.Errorf("Failed to delete file '%s': %s", filePath, err)
+			continue
+		}
+	}
+	// Delete user (links, files and reset_codes cascade delete)
+	_, err = h.Database.Exec(`DELETE FROM users WHERE id=$1`, user.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	// Clear authentication cookie
+	h.destroyCookie(c)
+	c.JSON(http.StatusOK, nil)
+}
+
 func (h *Handler) ListFiles(c *gin.Context) {
 	rows, err := h.Database.Query(`SELECT file_name, file_size, created_at FROM files WHERE user_id = $1`, c.Keys["user_id"])
 	if err != nil {
@@ -452,7 +554,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	}
 	if user == nil {
 		h.Logger.Errorf("Ignoring password reset request for non-existent user %s", emailAddress)
-		c.Status(http.StatusOK)
+		c.JSON(http.StatusOK, nil)
 		return
 	}
 
@@ -479,7 +581,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, nil)
 }
 
 func (h *Handler) ResetPassword(c *gin.Context) {
@@ -530,48 +632,5 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		h.Logger.Warnf("Failed to delete reset-code %d after successful use: %s", dbPR.Id, err)
 	}
 
-	c.Status(http.StatusOK)
-}
-
-func (h *Handler) ChangePassword(c *gin.Context) {
-	var req = &ChangePasswordReq{}
-	if err := c.BindJSON(req); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	// Get user
-	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	if user == nil {
-		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
-		return
-	}
-	// Compare old passwords
-	match, err := ComparePassword(req.Password, user.Password)
-	if err != nil { // Error hashing passwords
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	if !match { // Password mis-match
-		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
-		return
-	}
-	// Hash new password
-	// TODO: Validate password strength
-	passwordHash, err := HashPassword(req.NewPassword)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	// Store new password
-	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, user.ID)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, nil)
 }

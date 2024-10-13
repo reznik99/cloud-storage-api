@@ -80,6 +80,8 @@ func main() {
 	router.POST("/api/signup", handler.Signup)
 	router.POST("/api/logout", handler.Logout)
 	router.GET("/api/session", middleware.Protected(handler.Session))
+	router.POST("/api/change_password", middleware.Protected(handler.ChangePassword))
+	router.POST("/api/delete_account", middleware.Protected(handler.DeleteAccount))
 	// Files
 	router.GET("/api/files", middleware.Protected(handler.ListFiles))
 	router.POST("/api/file", middleware.Protected(handler.UploadFile))
@@ -94,7 +96,6 @@ func main() {
 	// Password Reset
 	router.GET("/api/reset_password", handler.RequestResetPassword)
 	router.POST("/api/reset_password", handler.ResetPassword)
-	router.POST("/api/change_password", middleware.Protected(handler.ChangePassword))
 
 	listenAddr := fmt.Sprintf("%s:%s", os.Getenv("LISTEN_ADDR"), os.Getenv("LISTEN_PORT"))
 	logger.Infof("Cloud-Storage API (%s) is online '%s'", Version, listenAddr)

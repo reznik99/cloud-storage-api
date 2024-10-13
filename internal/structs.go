@@ -49,6 +49,10 @@ type ChangePasswordReq struct {
 	NewPassword string `json:"new_password"`
 }
 
+type DeleteAccountReq struct {
+	Password string `json:"password"`
+}
+
 // Substructures
 
 type File struct {
