@@ -567,7 +567,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	resetCode := hex.EncodeToString(randomBytes)
 
 	// Store reset-code in database
-	_, err = h.Database.Exec(`INSERT INTO password_reset_code(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
+	_, err = h.Database.Exec(`INSERT INTO password_reset_codes(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
 	if err != nil {
 		h.Logger.Errorf("Failed to save reset-code into database: %s", err)
 		c.AbortWithError(http.StatusUnauthorized, errors.New("failed to save reset-code into database"))
@@ -605,7 +605,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	}
 	if time.Since(dbPR.CreatedAt) > time.Minute*10 {
 		// Code expired
-		_, err = h.Database.Exec(`DELETE FROM password_reset_code WHERE id=$1`, dbPR.Id)
+		_, err = h.Database.Exec(`DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
 		if err != nil {
 			h.Logger.Warnf("Failed to delete expired reset-code %d: %s", dbPR.Id, err)
 		}
@@ -627,7 +627,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 	// Delete reset-code (1 time use)
-	_, err = h.Database.Exec(`DELETE FROM password_reset_code WHERE id=$1`, dbPR.Id)
+	_, err = h.Database.Exec(`DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
 	if err != nil {
 		h.Logger.Warnf("Failed to delete reset-code %d after successful use: %s", dbPR.Id, err)
 	}

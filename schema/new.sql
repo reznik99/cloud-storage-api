@@ -1,3 +1,5 @@
+-- TABLE NAMES SHOULD BE PLURAL
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email_address VARCHAR(255) NOT NULL,
@@ -28,10 +30,10 @@ CREATE TABLE links (
 );
 ALTER TABLE links OWNER TO gdrive;
 
-CREATE TABLE password_reset_code (
+CREATE TABLE password_reset_codes (
     id SERIAL PRIMARY KEY,
     user_id SERIAL REFERENCES users(id) ON DELETE CASCADE,
     reset_code VARCHAR(128) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() 
 );
-ALTER TABLE password_reset_code OWNER TO gdrive;
+ALTER TABLE password_reset_codes OWNER TO gdrive;

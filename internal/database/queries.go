@@ -140,7 +140,7 @@ func UpdateLinkDownloadCount(db *sql.DB, link_id int32) error {
 }
 
 func GetPasswordResetByCode(db *sql.DB, reset_code string) (*DBPasswordReset, error) {
-	rows, err := db.Query(`SELECT * FROM password_reset_code WHERE reset_code = $1`, reset_code)
+	rows, err := db.Query(`SELECT * FROM password_reset_codes WHERE reset_code = $1`, reset_code)
 	if err != nil {
 		return nil, err
 	}
