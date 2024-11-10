@@ -43,7 +43,7 @@ func GetUserById(db *sql.DB, id int32) (*DBUser, error) {
 }
 
 func GetUserCRVByEmail(db *sql.DB, email_address string) (string, error) {
-	rows, err := db.Query(`SELECT cleint_random_value FROM users WHERE email_address=$1`, email_address)
+	rows, err := db.Query(`SELECT client_random_value FROM users WHERE email_address=$1`, email_address)
 	if err != nil {
 		return "", err
 	}
