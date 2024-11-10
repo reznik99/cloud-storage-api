@@ -4,6 +4,7 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email_address VARCHAR(255) NOT NULL,
     password VARCHAR(128) NOT NULL,
+    client_random_value VARCHAR(64) NOT NULL DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
