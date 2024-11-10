@@ -106,6 +106,28 @@ func (h *Handler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, nil)
 }
 
+func (h *Handler) GetRandomValue(c *gin.Context) {
+	emailAddress := c.Query("email_address")
+
+	// Get CRV from database for emailAddress
+	crv, err := database.GetUserCRVByEmail(h.Database, emailAddress)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// If no CRV found, return default one
+	if crv == "" {
+		h.Logger.Infof("No CRV found, returning default for user %s", emailAddress)
+		crv = os.Getenv("DEFAULT_CRV")
+	}
+
+	// Return CRV
+	c.JSON(http.StatusOK, &CRVRes{
+		ClientRandomValue: crv,
+	})
+}
+
 func (h *Handler) Session(c *gin.Context) {
 	userId := c.Keys["user_id"].(int32)
 	user, err := database.GetUserById(h.Database, userId)

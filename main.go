@@ -79,6 +79,7 @@ func main() {
 	router.POST("/api/login", handler.Login)
 	router.POST("/api/signup", handler.Signup)
 	router.POST("/api/logout", handler.Logout)
+	router.GET("/api/client_random_value", handler.GetRandomValue)
 	router.GET("/api/session", middleware.Protected(handler.Session))
 	router.POST("/api/change_password", middleware.Protected(handler.ChangePassword))
 	router.POST("/api/delete_account", middleware.Protected(handler.DeleteAccount))

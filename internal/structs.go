@@ -13,7 +13,9 @@ type LoginRes struct {
 	CreatedAt    time.Time `json:"created_at"`
 	LastSeen     time.Time `json:"last_seen"`
 }
-
+type CRVRes struct {
+	ClientRandomValue string `json:"client_random_value"`
+}
 type SignupReq struct {
 	EmailAddress string `json:"email_address"`
 	Password     string `json:"password"`
@@ -38,17 +40,14 @@ type LinkRes struct {
 	CreatedAt   time.Time `json:"created_at"`
 	Url         string    `json:"url"`
 }
-
 type ResetPasswordReq struct {
 	NewPassword string `json:"new_password"`
 	ResetCode   string `json:"reset_code"`
 }
-
 type ChangePasswordReq struct {
 	Password    string `json:"password"`
 	NewPassword string `json:"new_password"`
 }
-
 type DeleteAccountReq struct {
 	Password string `json:"password"`
 }

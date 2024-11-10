@@ -42,6 +42,24 @@ func GetUserById(db *sql.DB, id int32) (*DBUser, error) {
 	return user, nil
 }
 
+func GetUserCRVByEmail(db *sql.DB, email_address string) (string, error) {
+	rows, err := db.Query(`SELECT cleint_random_value FROM users WHERE email_address=$1`, email_address)
+	if err != nil {
+		return "", err
+	}
+	if !rows.Next() {
+		return "", nil
+	}
+	defer rows.Close()
+
+	crv := ""
+	err = rows.Scan(&crv)
+	if err != nil {
+		return "", err
+	}
+	return crv, nil
+}
+
 func UpdateLastSeen(db *sql.DB, id int32) error {
 	_, err := db.Exec(`UPDATE users SET last_seen = $1 WHERE id = $2`, time.Now(), id)
 	return err
