@@ -372,7 +372,7 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 
 	err = os.Remove(filepath.Join(h.FileStoragePath, location))
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		h.Logger.Errorf("Failed to delete file: %s", err)
 		return
 	}
 
