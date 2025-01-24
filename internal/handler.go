@@ -77,7 +77,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	if user != nil { // Email address already taken
+	if user != nil {
 		c.AbortWithError(http.StatusBadRequest, errors.New("email address already taken"))
 		return
 	}
@@ -89,7 +89,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	_, err = h.Database.Exec(`INSERT INTO users(email_address, password) VALUES($1, $2)`, req.EmailAddress, passwordHash)
+	_, err = h.Database.Exec(`INSERT INTO users(email_address, password, client_random_value) VALUES($1, $2, $3)`, req.EmailAddress, passwordHash, req.ClientRandomValue)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return

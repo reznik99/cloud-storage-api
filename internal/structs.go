@@ -17,8 +17,9 @@ type CRVRes struct {
 	ClientRandomValue string `json:"client_random_value"`
 }
 type SignupReq struct {
-	EmailAddress string `json:"email_address"`
-	Password     string `json:"password"`
+	EmailAddress      string `json:"email_address"`
+	Password          string `json:"password"`
+	ClientRandomValue string `json:"client_random_value"`
 }
 type ListFilesRes struct {
 	Files []File `json:"files"`
