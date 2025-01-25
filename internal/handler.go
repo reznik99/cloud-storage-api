@@ -139,9 +139,10 @@ func (h *Handler) Session(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, LoginRes{
-		EmailAddress: user.EmailAddress,
-		CreatedAt:    user.CreatedAt,
-		LastSeen:     user.LastSeen,
+		EmailAddress:      user.EmailAddress,
+		CreatedAt:         user.CreatedAt,
+		LastSeen:          user.LastSeen,
+		WrappedAccountKey: user.WrappedAccountKey,
 	})
 }
 
