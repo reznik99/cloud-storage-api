@@ -249,7 +249,7 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 }
 
 func (h *Handler) ListFiles(c *gin.Context) {
-	rows, err := h.Database.Query(`SELECT file_name, file_size, created_at FROM files WHERE user_id = $1`, c.Keys["user_id"])
+	rows, err := h.Database.Query(`SELECT file_name, file_size, created_at, wrapped_file_key FROM files WHERE user_id = $1`, c.Keys["user_id"])
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -264,15 +264,17 @@ func (h *Handler) ListFiles(c *gin.Context) {
 		var file_name string
 		var file_size int64
 		var added time.Time
-		err = rows.Scan(&file_name, &file_size, &added)
+		var wrappedFileKey string
+		err = rows.Scan(&file_name, &file_size, &added, &wrappedFileKey)
 		if err != nil {
 			h.Logger.Errorf("Error scanning row: %s", err)
 			continue
 		}
 		output.Files = append(output.Files, File{
-			Name:  file_name,
-			Size:  file_size,
-			Added: added,
+			Name:           file_name,
+			Size:           file_size,
+			Added:          added,
+			WrappedFileKey: wrappedFileKey,
 		})
 	}
 
@@ -280,6 +282,11 @@ func (h *Handler) ListFiles(c *gin.Context) {
 }
 
 func (h *Handler) UploadFile(c *gin.Context) {
+	wrappedFileKey := c.Request.FormValue("wrapped_file_key")
+	if wrappedFileKey == "" {
+		c.AbortWithError(http.StatusBadRequest, errors.New("encrypted file key is required for file upload"))
+		return
+	}
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -296,8 +303,8 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	// For End-to-End encrypted files http.ServeFile can't detect mime-type so we save it to the database
 	fileMimeType := file.Header.Get("Content-Type")
 
-	stmt := `INSERT INTO files(user_id, location, file_name, file_size, file_type) VALUES($1, $2, $3, $4, $5)`
-	_, err = h.Database.Exec(stmt, c.Keys["user_id"], location, file.Filename, file.Size, fileMimeType)
+	stmt := `INSERT INTO files(user_id, location, file_name, file_size, file_type, wrapped_file_key) VALUES($1, $2, $3, $4, $5, $6)`
+	_, err = h.Database.Exec(stmt, c.Keys["user_id"], location, file.Filename, file.Size, fileMimeType, wrappedFileKey)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return

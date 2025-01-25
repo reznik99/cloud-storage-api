@@ -15,6 +15,7 @@ CREATE TABLE files (
     id SERIAL PRIMARY KEY,
     user_id SERIAL REFERENCES users(id) ON DELETE CASCADE,
     location VARCHAR(255) NOT NULL,
+    wrapped_file_key VARCHAR(128) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_size BIGINT NOT NULL,
     file_type VARCHAR(255) NOT NULL,
