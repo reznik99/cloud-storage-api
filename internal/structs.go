@@ -42,12 +42,14 @@ type LinkRes struct {
 	Url         string    `json:"url"`
 }
 type ResetPasswordReq struct {
-	NewPassword string `json:"new_password"`
-	ResetCode   string `json:"reset_code"`
+	ResetCode            string `json:"reset_code"`
+	NewPassword          string `json:"new_password"`
+	NewClientRandomValue string `json:"new_client_random_value"`
 }
 type ChangePasswordReq struct {
-	Password    string `json:"password"`
-	NewPassword string `json:"new_password"`
+	Password             string `json:"password"`
+	NewPassword          string `json:"new_password"`
+	NewClientRandomValue string `json:"new_client_random_value"`
 }
 type DeleteAccountReq struct {
 	Password string `json:"password"`

@@ -177,7 +177,8 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	// Store new password
-	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, user.ID)
+	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2 WHERE id=$3`,
+		passwordHash, req.NewClientRandomValue, user.ID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -643,7 +644,8 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 	// Store new password
-	_, err = h.Database.Exec(`UPDATE users SET password=$1 WHERE id=$2`, passwordHash, dbPR.UserId)
+	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2 WHERE id=$3`,
+		passwordHash, req.NewClientRandomValue, dbPR.UserId)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
