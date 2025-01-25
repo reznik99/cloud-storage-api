@@ -3,11 +3,12 @@ package database
 import "time"
 
 type DBUser struct {
-	ID           int32
-	EmailAddress string
-	Password     string
-	CreatedAt    time.Time
-	LastSeen     time.Time
+	ID                int32
+	EmailAddress      string
+	Password          string
+	CreatedAt         time.Time
+	LastSeen          time.Time
+	WrappedAccountKey string
 }
 
 type DBFile struct {

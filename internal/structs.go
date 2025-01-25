@@ -9,9 +9,10 @@ type LoginReq struct {
 	Password     string `json:"password"`
 }
 type LoginRes struct {
-	EmailAddress string    `json:"email_address"`
-	CreatedAt    time.Time `json:"created_at"`
-	LastSeen     time.Time `json:"last_seen"`
+	EmailAddress      string    `json:"email_address"`
+	CreatedAt         time.Time `json:"created_at"`
+	LastSeen          time.Time `json:"last_seen"`
+	WrappedAccountKey string    `json:"wrapped_account_key"` // This is wrapped with the master key
 }
 type CRVRes struct {
 	ClientRandomValue string `json:"client_random_value"`

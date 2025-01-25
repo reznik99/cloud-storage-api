@@ -57,9 +57,10 @@ func (h *Handler) Login(c *gin.Context) {
 	// Set authentication cookie
 	h.createCookie(c, user.ID)
 	c.JSON(http.StatusOK, LoginRes{
-		EmailAddress: user.EmailAddress,
-		CreatedAt:    user.CreatedAt,
-		LastSeen:     user.LastSeen,
+		EmailAddress:      user.EmailAddress,
+		CreatedAt:         user.CreatedAt,
+		LastSeen:          user.LastSeen,
+		WrappedAccountKey: user.WrappedAccountKey,
 	})
 }
 

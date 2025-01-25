@@ -7,7 +7,7 @@ import (
 )
 
 func GetUserByEmail(db *sql.DB, email_address string) (*DBUser, error) {
-	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen FROM users WHERE email_address=$1`, email_address)
+	rows, err := db.Query(`SELECT id, email_address, password, created_at, last_seen, wrapped_account_key FROM users WHERE email_address=$1`, email_address)
 	if err != nil {
 		return nil, err
 	}
@@ -17,7 +17,7 @@ func GetUserByEmail(db *sql.DB, email_address string) (*DBUser, error) {
 	defer rows.Close()
 
 	user := &DBUser{}
-	err = rows.Scan(&user.ID, &user.EmailAddress, &user.Password, &user.CreatedAt, &user.LastSeen)
+	err = rows.Scan(&user.ID, &user.EmailAddress, &user.Password, &user.CreatedAt, &user.LastSeen, &user.WrappedAccountKey)
 	if err != nil {
 		return nil, err
 	}
