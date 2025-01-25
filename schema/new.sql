@@ -4,7 +4,8 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email_address VARCHAR(255) NOT NULL,
     password VARCHAR(128) NOT NULL,
-    client_random_value VARCHAR(64) NOT NULL DEFAULT '',
+    client_random_value VARCHAR(64) NOT NULL,
+    wrapped_account_key VARCHAR(128) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
@@ -16,7 +17,7 @@ CREATE TABLE files (
     location VARCHAR(255) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_size BIGINT NOT NULL,
-    file_type VARCHAR(255) NOT NULL DEFAULT '',
+    file_type VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE files OWNER TO gdrive;

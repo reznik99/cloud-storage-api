@@ -89,7 +89,8 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	_, err = h.Database.Exec(`INSERT INTO users(email_address, password, client_random_value) VALUES($1, $2, $3)`, req.EmailAddress, passwordHash, req.ClientRandomValue)
+	_, err = h.Database.Exec(`INSERT INTO users(email_address, password, client_random_value, wrapped_account_key) VALUES($1, $2, $3, $4)`,
+		req.EmailAddress, passwordHash, req.ClientRandomValue, req.WrappedAccountKey)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -106,7 +107,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, nil)
 }
 
-func (h *Handler) GetRandomValue(c *gin.Context) {
+func (h *Handler) GetClientRandomValue(c *gin.Context) {
 	emailAddress := c.Query("email_address")
 
 	// Get CRV from database for emailAddress
@@ -177,8 +178,8 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	// Store new password
-	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2 WHERE id=$3`,
-		passwordHash, req.NewClientRandomValue, user.ID)
+	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
+		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, user.ID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -622,39 +623,38 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 	if dbPR == nil {
-		// Code already used or invalid
-		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code invalid"))
-		return
-	}
-	if time.Since(dbPR.CreatedAt) > time.Minute*10 {
-		// Code expired
-		_, err = h.Database.Exec(`DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
-		if err != nil {
-			h.Logger.Warnf("Failed to delete expired reset-code %d: %s", dbPR.Id, err)
-		}
 		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code invalid"))
 		return
 	}
 
-	// Hash new password
+	// Delete reset-code (1 time use) regardless of success or failure
+	defer func() {
+		_, err = h.Database.Exec(`DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
+		if err != nil {
+			h.Logger.Warnf("Failed to delete reset-code %d after successful use: %s", dbPR.Id, err)
+		}
+	}()
+
+	if time.Since(dbPR.CreatedAt) > time.Minute*10 {
+		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code expired"))
+		return
+	}
 	// TODO: Validate password strength
+
+	// Hash new password
 	passwordHash, err := HashPassword(req.NewPassword)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	// Store new password
-	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2 WHERE id=$3`,
-		passwordHash, req.NewClientRandomValue, dbPR.UserId)
+	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
+		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, dbPR.UserId)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	// Delete reset-code (1 time use)
-	_, err = h.Database.Exec(`DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
-	if err != nil {
-		h.Logger.Warnf("Failed to delete reset-code %d after successful use: %s", dbPR.Id, err)
-	}
 
+	// TODO: Delete all files and links in account (as this is a destructive endpoint and file won't be recoverable)
 	c.JSON(http.StatusOK, nil)
 }

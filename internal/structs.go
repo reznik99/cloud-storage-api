@@ -19,6 +19,7 @@ type CRVRes struct {
 type SignupReq struct {
 	EmailAddress      string `json:"email_address"`
 	Password          string `json:"password"`
+	WrappedAccountKey string `json:"wrapped_account_key"` // This is wrapped with the master key
 	ClientRandomValue string `json:"client_random_value"`
 }
 type ListFilesRes struct {
@@ -44,11 +45,13 @@ type LinkRes struct {
 type ResetPasswordReq struct {
 	ResetCode            string `json:"reset_code"`
 	NewPassword          string `json:"new_password"`
+	NewWrappedAccountKey string `json:"new_wrapped_account_key"` // This is a new key wrapped with a new master key
 	NewClientRandomValue string `json:"new_client_random_value"`
 }
 type ChangePasswordReq struct {
 	Password             string `json:"password"`
 	NewPassword          string `json:"new_password"`
+	NewWrappedAccountKey string `json:"new_wrapped_account_key"` // This must be the same key, but wrapped with a new master key
 	NewClientRandomValue string `json:"new_client_random_value"`
 }
 type DeleteAccountReq struct {
