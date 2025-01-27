@@ -28,11 +28,35 @@ var (
 		},
 		[]string{"path", "status"},
 	)
+	UploadCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "storage_api_upload_total",
+			Help: "Total number of error requests processed by the storage-api.",
+		},
+		[]string{"status"},
+	)
+	DownloadCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "storage_api_download_total",
+			Help: "Total number of error requests processed by the storage-api.",
+		},
+		[]string{"status"},
+	)
+	SharedCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "storage_api_share_total",
+			Help: "Total number of error requests processed by the storage-api.",
+		},
+		[]string{"status"},
+	)
 )
 
 func PrometheusInit() {
 	prometheus.MustRegister(RequestCount)
 	prometheus.MustRegister(ErrorCount)
+	prometheus.MustRegister(UploadCount)
+	prometheus.MustRegister(DownloadCount)
+	prometheus.MustRegister(SharedCount)
 }
 
 // ErrorHandler is middleware that returns errors in structured JSON fromat

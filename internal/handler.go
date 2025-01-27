@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"gorinidrive.com/api/internal/database"
+	"gorinidrive.com/api/internal/middleware"
 )
 
 type Handler struct {
@@ -317,12 +318,14 @@ func (h *Handler) UploadFile(c *gin.Context) {
 		return
 	}
 
+	middleware.UploadCount.WithLabelValues(http.StatusText(http.StatusOK)).Add(float64(file.Size))
+
 	c.JSON(http.StatusOK, nil)
 }
 
 func (h *Handler) DownloadFile(c *gin.Context) {
 	fileName := c.Query("name")
-	rows, err := h.Database.Query(`SELECT location, file_type FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName)
+	rows, err := h.Database.Query(`SELECT location, file_type, file_size FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -334,8 +337,9 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 	defer rows.Close()
 
 	var location string
+	var fileSize int64
 	var fileMimeType string
-	if rows.Scan(&location, &fileMimeType) != nil {
+	if rows.Scan(&location, &fileMimeType, &fileSize) != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
@@ -344,6 +348,7 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 		// For End-to-End encrypted files http.ServeFile can't detect mime-type so we include it from database
 		c.Header("Content-Type", fileMimeType)
 	}
+	middleware.DownloadCount.WithLabelValues(http.StatusText(http.StatusOK)).Add(float64(fileSize))
 	// Read file from disk and write to response (handles partial-content/range requests)
 	c.File(filepath.Join(h.FileStoragePath, location))
 }
@@ -572,6 +577,7 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 		// For End-to-End encrypted files http.ServeFile can't detect mime-type so we include it from database
 		c.Header("Content-Type", dbFile.FileType)
 	}
+	middleware.SharedCount.WithLabelValues(http.StatusText(http.StatusOK)).Add(float64(dbFile.FileSize))
 	// Read file from disk and write to response
 	c.File(filepath.Join(h.FileStoragePath, dbFile.Location))
 }
