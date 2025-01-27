@@ -65,6 +65,8 @@ func main() {
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
 	}
 	gin.SetMode(gin.ReleaseMode)
+
+	middleware.PrometheusInit()
 	router := gin.New()
 	router.SetTrustedProxies([]string{"127.0.0.1"})
 	router.Use(gin.Recovery())
@@ -74,6 +76,9 @@ func main() {
 	router.Use(handler.InitCors())
 
 	// Register routes
+	logger.Info("Registering protected metric route...")
+	router.GET("/metrics", middleware.MetricsHandler())
+
 	logger.Info("Registering api routes...")
 	// Auth
 	router.POST("/api/login", handler.Login)
