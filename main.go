@@ -76,8 +76,8 @@ func main() {
 	router.Use(handler.InitCors())
 
 	// Register routes
-	logger.Info("Registering protected metric route...")
-	router.GET("/metrics", middleware.MetricsHandler())
+	logger.Info("Registering protected metrics route...")
+	router.GET("/api/metrics", middleware.MetricsHandler())
 
 	logger.Info("Registering api routes...")
 	// Auth
