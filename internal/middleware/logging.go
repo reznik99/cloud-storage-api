@@ -85,6 +85,8 @@ func LogHandler(logger *logrus.Logger) gin.HandlerFunc {
 		if status >= 400 {
 			logger.Errorf("from: %s | took: %dms | %d %s %s", clientIP, latency.Milliseconds(), status, method, path)
 			ErrorCount.WithLabelValues(path, http.StatusText(status)).Inc()
+		} else if path == "/api/metrics" {
+			return // Don't log and don't count this request
 		} else {
 			logger.Infof("from: %s | took: %dms | %d %s %s", clientIP, latency.Milliseconds(), status, method, path)
 		}

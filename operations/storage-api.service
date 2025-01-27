@@ -1,8 +1,9 @@
 [Unit]
 Description=Cloud Storage API
 ConditionPathExists=/home/Storage-Backend/
-After=network.target
- 
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
 [Service]
 Type=simple
 User=<user>
