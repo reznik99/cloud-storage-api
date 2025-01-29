@@ -83,18 +83,21 @@ func (h *Handler) Signup(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, errors.New("email address already taken"))
 		return
 	}
-
-	// TODO: Validate password strength
+	// Validate password strength
+	if err = ValidatePassword(req.Password); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+	}
+	// Hash new password
 	passwordHash, err := HashPassword(req.Password)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-
+	// Store details
 	_, err = h.Database.Exec(`INSERT INTO users(email_address, password, client_random_value, wrapped_account_key) VALUES($1, $2, $3, $4)`,
 		req.EmailAddress, passwordHash, req.ClientRandomValue, req.WrappedAccountKey)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -173,14 +176,17 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
 		return
 	}
+	// Validate password strength
+	if err = ValidatePassword(req.Password); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+	}
 	// Hash new password
-	// TODO: Validate password strength
 	passwordHash, err := HashPassword(req.NewPassword)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	// Store new password
+	// Store new details
 	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
 		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, user.ID)
 	if err != nil {
@@ -654,15 +660,17 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code expired"))
 		return
 	}
-	// TODO: Validate password strength
-
+	// Validate password strength
+	if err = ValidatePassword(req.NewPassword); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.NewPassword)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	// Store new password
+	// Store new details
 	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
 		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, dbPR.UserId)
 	if err != nil {

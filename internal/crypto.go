@@ -8,20 +8,26 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nbutton23/zxcvbn-go"
 	"golang.org/x/crypto/argon2"
 )
 
 var (
 	ErrInvalidHash         = errors.New("the encoded hash is not in the correct format")
 	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
+	ErrPasswordMismatch    = errors.New("passwords don't match")
+	ErrPasswordTooShort    = errors.New("password is shorter than 8 characters")
+	ErrPasswordTooWeak     = errors.New("password is too weak")
 )
 
 const (
-	ArgonTime       = 1
-	ArgonMemory     = 64 * 1024
-	ArgonThreads    = 4
-	ArgonSaltLength = 16
-	ArgonKeyLength  = 32
+	ArgonTime         = 1
+	ArgonMemory       = 64 * 1024
+	ArgonThreads      = 4
+	ArgonSaltLength   = 16
+	ArgonKeyLength    = 32
+	MinPasswordLength = 8
+	MinPasswordScore  = 1
 )
 
 type ArgonParams struct {
@@ -30,6 +36,17 @@ type ArgonParams struct {
 	parallelism uint8  // ArgonThreads
 	saltLength  uint32 // ArgonSaltLength
 	keyLength   uint32 // ArgonKeyLength
+}
+
+func ValidatePassword(password string) error {
+	if len(password) < MinPasswordLength {
+		return ErrPasswordTooShort
+	}
+	res := zxcvbn.PasswordStrength(password, nil)
+	if res.Score < MinPasswordScore {
+		return ErrPasswordTooWeak
+	}
+	return nil
 }
 
 func ComparePassword(password string, encodedHash string) (bool, error) {
