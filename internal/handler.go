@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"gorinidrive.com/api/internal/database"
 	"gorinidrive.com/api/internal/middleware"
@@ -19,6 +20,7 @@ type Handler struct {
 	Logger          *logrus.Logger
 	Database        *sql.DB
 	FileStoragePath string
+	Upgrader        websocket.Upgrader
 	cookieDuration  int
 }
 
@@ -680,4 +682,16 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 
 	// TODO: Delete all files and links in account (as this is a destructive endpoint and file won't be recoverable)
 	c.JSON(http.StatusOK, nil)
+}
+
+func (h *Handler) NewWebsocket(c *gin.Context) {
+	h.Logger.Info("Websocket request")
+	conn, err := h.Upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		h.Logger.Errorf("Error upgrading ws req: %s", err)
+		return
+	}
+	defer conn.Close()
+	conn.WriteMessage(websocket.TextMessage, []byte("Hello, WebSocket!"))
+	time.Sleep(time.Second)
 }

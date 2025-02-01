@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"gorinidrive.com/api/internal"
@@ -63,6 +64,11 @@ func main() {
 		Logger:          logger,
 		Database:        db,
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
+		Upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin:     internal.CheckWebSocketOrigin,
+		},
 	}
 	gin.SetMode(gin.ReleaseMode)
 
@@ -102,6 +108,8 @@ func main() {
 	// Password Reset
 	router.GET("/api/reset_password", handler.RequestResetPassword)
 	router.POST("/api/reset_password", handler.ResetPassword)
+	// Websockets
+	router.GET("/ws", handler.NewWebsocket)
 
 	listenAddr := fmt.Sprintf("%s:%s", os.Getenv("LISTEN_ADDR"), os.Getenv("LISTEN_PORT"))
 	logger.Infof("Cloud-Storage API (%s) is online '%s'", Version, listenAddr)

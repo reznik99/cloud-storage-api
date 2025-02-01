@@ -1,7 +1,9 @@
 package internal
 
 import (
+	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -9,7 +11,20 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
+
+func CheckWebSocketOrigin(r *http.Request) bool {
+	if !websocket.IsWebSocketUpgrade(r) {
+		return false
+	}
+	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	proto := "https://"
+	if r.TLS == nil {
+		proto = "http://"
+	}
+	return slices.Contains(allowedOrigins, proto+r.Host)
+}
 
 // InitCors parses env variables for allowed cors origins and creates a cors config, then returns middleware func for gin
 func (h *Handler) InitCors() gin.HandlerFunc {
