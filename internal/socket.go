@@ -48,6 +48,15 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 		conn.Close()
 		h.WebSockets.Delete(socketKey)
 	}()
+	// Give client their key
+	err := h.SocketWriteJSON(socketKey, &SocketMsg{
+		Command: "websocket-key",
+		Data:    socketKey,
+	})
+	if err != nil {
+		h.Logger.Errorf("Failed to send websocket key to client: %s", err)
+		return
+	}
 
 	// Be ready for incoming messages
 	for {

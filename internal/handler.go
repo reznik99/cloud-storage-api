@@ -702,15 +702,5 @@ func (h *Handler) NewWebsocket(c *gin.Context) {
 		return
 	}
 
-	err = h.SocketWriteJSON(socketKey, &SocketMsg{
-		Command: "websocket-key",
-		Data:    socketKey,
-	})
-	if err != nil {
-		h.Logger.Errorf("Failed to generate websocket key: %s", err)
-		conn.Close()
-		return
-	}
-
 	go h.HandleSocket(socketKey, conn)
 }
