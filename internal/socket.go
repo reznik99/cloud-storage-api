@@ -12,6 +12,7 @@ const SOCKET_PING_TIMEOUT = time.Second * 10
 
 type SocketMsg struct {
 	Command string `json:"command"`
+	Target  string `json:"target"`
 	Data    string `json:"data"`
 }
 
@@ -50,14 +51,23 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 
 	// Be ready for incoming messages
 	for {
-		_, _, err := conn.ReadMessage()
+		message := &SocketMsg{}
+		err := conn.ReadJSON(message)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				h.Logger.Errorf("error: %v", err)
 			}
 			break
 		}
-		// TODO: Handle messages here such as WebRTC offers and ICE Candidates
+		switch message.Command {
+		case "icecandidate":
+			err = h.SocketWriteJSON(message.Target, message)
+		default:
+			h.Logger.Warnf("Unrecognized websocket message command: %s", message.Command)
+		}
+		if err != nil {
+			h.Logger.Warnf("Socket command error: %s", err)
+		}
 	}
 }
 
