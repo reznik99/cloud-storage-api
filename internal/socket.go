@@ -57,6 +57,12 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 		h.Logger.Errorf("Failed to send websocket key to client: %s", err)
 		return
 	}
+	// Log closure
+	defaultCloseHandler := conn.CloseHandler()
+	conn.SetCloseHandler(func(code int, text string) error {
+		h.Logger.Infof("Closing websocket conn: %s", socketKey)
+		return defaultCloseHandler(code, text)
+	})
 
 	// Be ready for incoming messages
 	for {
@@ -64,7 +70,7 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 		err := conn.ReadJSON(message)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				h.Logger.Errorf("error: %v", err)
+				h.Logger.Errorf("Unexpected socket close error: %v", err)
 			}
 			break
 		}
