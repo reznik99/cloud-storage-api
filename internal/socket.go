@@ -11,8 +11,9 @@ const SOCKET_PING_EVERY = time.Second * 30
 const SOCKET_PING_TIMEOUT = time.Second * 10
 
 type SocketMsg struct {
+	From    string `json:"from"`
+	To      string `json:"to"`
 	Command string `json:"command"`
-	Target  string `json:"target"`
 	Data    string `json:"data"`
 }
 
@@ -74,9 +75,13 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 			}
 			break
 		}
+		message.From = socketKey // Override from value
+		h.Logger.Info("Recieved websocket message")
 		switch message.Command {
+		case "answer":
+			err = h.SocketWriteJSON(message.To, message)
 		case "icecandidate":
-			err = h.SocketWriteJSON(message.Target, message)
+			err = h.SocketWriteJSON(message.To, message)
 		default:
 			h.Logger.Warnf("Unrecognized websocket message command: %s", message.Command)
 		}

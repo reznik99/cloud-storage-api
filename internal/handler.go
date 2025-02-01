@@ -687,7 +687,6 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 }
 
 func (h *Handler) NewWebsocket(c *gin.Context) {
-	h.Logger.Info("Websocket request")
 	conn, err := h.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		h.Logger.Errorf("Error upgrading ws req: %s", err)
@@ -695,12 +694,11 @@ func (h *Handler) NewWebsocket(c *gin.Context) {
 	}
 
 	randomBytes, err := generateRandomBytes(16)
-	socketKey := hex.EncodeToString(randomBytes)
 	if err != nil {
 		h.Logger.Errorf("Failed to generate websocket key: %s", err)
 		conn.Close()
 		return
 	}
 
-	go h.HandleSocket(socketKey, conn)
+	go h.HandleSocket(hex.EncodeToString(randomBytes), conn)
 }
