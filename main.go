@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -69,6 +70,7 @@ func main() {
 			WriteBufferSize: 1024,
 			CheckOrigin:     internal.CheckWebSocketOrigin,
 		},
+		WebSockets: sync.Map{},
 	}
 	gin.SetMode(gin.ReleaseMode)
 
@@ -114,6 +116,8 @@ func main() {
 	listenAddr := fmt.Sprintf("%s:%s", os.Getenv("LISTEN_ADDR"), os.Getenv("LISTEN_PORT"))
 	logger.Infof("Cloud-Storage API (%s) is online '%s'", Version, listenAddr)
 
+	// Start websocket cleanup routine
+	go handler.PingSockets()
 	// Listen and serve
 	err = router.Run(listenAddr)
 	if err != nil {

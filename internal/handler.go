@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ type Handler struct {
 	Database        *sql.DB
 	FileStoragePath string
 	Upgrader        websocket.Upgrader
+	WebSockets      sync.Map
 	cookieDuration  int
 }
 
@@ -691,7 +693,24 @@ func (h *Handler) NewWebsocket(c *gin.Context) {
 		h.Logger.Errorf("Error upgrading ws req: %s", err)
 		return
 	}
-	defer conn.Close()
-	conn.WriteMessage(websocket.TextMessage, []byte("Hello, WebSocket!"))
-	time.Sleep(time.Second)
+
+	randomBytes, err := generateRandomBytes(16)
+	socketKey := hex.EncodeToString(randomBytes)
+	if err != nil {
+		h.Logger.Errorf("Failed to generate websocket key: %s", err)
+		conn.Close()
+		return
+	}
+
+	err = h.SocketWriteJSON(socketKey, &SocketMsg{
+		Command: "websocket-key",
+		Data:    socketKey,
+	})
+	if err != nil {
+		h.Logger.Errorf("Failed to generate websocket key: %s", err)
+		conn.Close()
+		return
+	}
+
+	go h.HandleSocket(socketKey, conn)
 }
