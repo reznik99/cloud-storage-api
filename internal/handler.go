@@ -689,13 +689,13 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 func (h *Handler) NewWebsocket(c *gin.Context) {
 	conn, err := h.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		h.Logger.Errorf("Error upgrading ws req: %s", err)
+		h.Logger.Errorf("[WS] error upgrading ws req: %s", err)
 		return
 	}
 
 	randomBytes, err := generateRandomBytes(16)
 	if err != nil {
-		h.Logger.Errorf("Failed to generate websocket key: %s", err)
+		h.Logger.Errorf("[WS] failed to generate websocket key: %s", err)
 		conn.Close()
 		return
 	}

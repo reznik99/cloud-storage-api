@@ -59,13 +59,13 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 		Data:    socketKey,
 	})
 	if err != nil {
-		h.Logger.Errorf("Failed to send websocket key to client: %s", err)
+		h.Logger.Errorf("[WS] failed to send key to client: %s", err)
 		return
 	}
 	// Log closure
 	defaultCloseHandler := conn.CloseHandler()
 	conn.SetCloseHandler(func(code int, text string) error {
-		h.Logger.Infof("Closing websocket conn: %s", socketKey)
+		h.Logger.Infof("[WS] closing conn for '%s'", socketKey)
 		return defaultCloseHandler(code, text)
 	})
 	// Be ready for incoming messages
@@ -74,22 +74,22 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 		err := conn.ReadJSON(message)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				h.Logger.Errorf("Unexpected socket close error: %v", err)
+				h.Logger.Errorf("[WS] unexpected close error: %v", err)
 			}
 			break
 		}
 		message.From = socketKey // Override from value
-		h.Logger.Info("Recieved websocket message")
+		h.Logger.Infof("[WS] type: '%s' from: '%s' to: '%s'", message.Command, message.From, message.To)
 		switch message.Command {
 		case "answer":
 			err = h.SocketWriteJSON(message.To, message)
 		case "icecandidate":
 			err = h.SocketWriteJSON(message.To, message)
 		default:
-			h.Logger.Warnf("Unrecognized websocket message command: %s", message.Command)
+			h.Logger.Warnf("[WS] unrecognized command: %s", message.Command)
 		}
 		if err != nil {
-			h.Logger.Warnf("Socket command error: %s", err)
+			h.Logger.Warnf("[WS] command error: %s", err)
 		}
 	}
 }
