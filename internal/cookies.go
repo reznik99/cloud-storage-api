@@ -55,12 +55,12 @@ func (h *Handler) InitCookieStore() gin.HandlerFunc {
 func (h *Handler) createCookie(c *gin.Context, id int32) {
 	session := sessions.Default(c)
 	session.Options(sessions.Options{
-		Path:     "/",              // ?
-		Domain:   c.Request.Host,   // Domain for which cookie should be sent
-		MaxAge:   h.cookieDuration, // Lifespan of cookie
-		Secure:   true,             // HTTPS only (except localhost)
-		HttpOnly: true,             // Always true
-		SameSite: 2,                // TODO: figure out ideal value
+		Path:     "/",                      // Path for cookie, whole website
+		Domain:   c.Request.Host,           // Domain for which cookie should be sent
+		MaxAge:   h.cookieDuration,         // Lifespan of cookie
+		Secure:   true,                     // HTTPS only (except localhost)
+		HttpOnly: true,                     // Always true
+		SameSite: http.SameSiteDefaultMode, // TODO: figure out ideal Value
 	})
 
 	// Set session data
