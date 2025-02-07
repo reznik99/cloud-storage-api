@@ -13,8 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"gorinidrive.com/api/internal/database"
-	"gorinidrive.com/api/internal/middleware"
+	"storage.francescogorini.com/api/api/internal/database"
+	"storage.francescogorini.com/api/api/internal/middleware"
 )
 
 type Handler struct {

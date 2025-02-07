@@ -1,6 +1,6 @@
-module gorinidrive.com/api
+module storage.francescogorini.com/api
 
-go 1.23.0
+go 1.23.6
 
 require (
 	github.com/gin-contrib/cors v1.7.3

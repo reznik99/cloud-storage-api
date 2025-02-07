@@ -11,9 +11,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
-	"gorinidrive.com/api/internal"
-	"gorinidrive.com/api/internal/database"
-	"gorinidrive.com/api/internal/middleware"
+	"storage.francescogorini.com/api/api/internal"
+	"storage.francescogorini.com/api/api/internal/database"
+	"storage.francescogorini.com/api/api/internal/middleware"
 )
 
 // Version tag is populated during build
