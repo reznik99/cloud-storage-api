@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const COOKIE_NAME = "G-Storage"
+
 func CheckWebSocketOrigin(r *http.Request) bool {
 	if !websocket.IsWebSocketUpgrade(r) {
 		return false
@@ -48,19 +50,19 @@ func (h *Handler) InitCookieStore() gin.HandlerFunc {
 	h.cookieDuration = int(dur.Seconds())
 
 	store := cookie.NewStore([]byte(cookieAuthKey))
-	return sessions.Sessions("gdrive", store)
+	return sessions.Sessions(COOKIE_NAME, store)
 }
 
 // creates a standard cookie and writes it on this gin context
 func (h *Handler) createCookie(c *gin.Context, id int32) {
 	session := sessions.Default(c)
 	session.Options(sessions.Options{
-		Path:     "/",                      // Path for cookie, whole website
-		Domain:   c.Request.Host,           // Domain for which cookie should be sent
-		MaxAge:   h.cookieDuration,         // Lifespan of cookie
-		Secure:   true,                     // HTTPS only (except localhost)
-		HttpOnly: true,                     // Always true
-		SameSite: http.SameSiteDefaultMode, // TODO: figure out ideal Value
+		Path:     "/",                     // Path for cookie, whole website
+		Domain:   c.Request.Host,          // Domain for which cookie should be sent
+		MaxAge:   h.cookieDuration,        // Lifespan of cookie
+		Secure:   true,                    // HTTPS only (except localhost)
+		HttpOnly: true,                    // Always true
+		SameSite: http.SameSiteStrictMode, // TODO: figure out ideal Value
 	})
 
 	// Set session data

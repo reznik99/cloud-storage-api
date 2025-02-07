@@ -8,7 +8,7 @@ import (
 )
 
 func SendPasswordResetEmail(toEmail string, resetCode string) error {
-	var subject = "GDrive password reset"
+	var subject = "G-Storage password reset"
 	var body = "Click here to reset your password: https://storage.francescogorini.com/reset-password#"
 	var fromEmail = os.Getenv("EMAIL_ADDRESS")
 
