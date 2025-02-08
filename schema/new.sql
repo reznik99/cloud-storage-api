@@ -7,7 +7,8 @@ CREATE TABLE users (
     client_random_value VARCHAR(64) NOT NULL,
     wrapped_account_key VARCHAR(128) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    allowed_storage BIGINT NOT NULL DEFAULT 1024000000
 );
 ALTER TABLE users OWNER TO gdrive;
 

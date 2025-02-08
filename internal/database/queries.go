@@ -103,6 +103,40 @@ func GetFileById(db *sql.DB, file_id int32) (*DBFile, bool, error) {
 	return dbFile, true, nil
 }
 
+func GetUserStorageMetrics(db *sql.DB, user_id int32) (*DBStorageMetrics, error) {
+	// Get size used if any
+	var storageUsed int64
+	fileRows, err := db.Query(`SELECT SUM(file_size) FROM files WHERE user_id = $1`, user_id)
+	if err != nil {
+		return nil, err
+	}
+	defer fileRows.Close()
+	if fileRows.Next() {
+		if err = fileRows.Scan(&storageUsed); err != nil {
+			return nil, err
+		}
+	}
+
+	// Get size allowed for account
+	var storageAllowed int64
+	userRows, err := db.Query(`SELECT allowed_storage FROM users WHERE id = $1`, user_id)
+	if err != nil {
+		return nil, err
+	}
+	defer userRows.Close()
+	if userRows.Next() {
+		if err = userRows.Scan(&storageAllowed); err != nil {
+			return nil, err
+		}
+	}
+
+	return &DBStorageMetrics{
+		UserId:      user_id,
+		SizeUsed:    storageUsed,
+		SizeAllowed: storageAllowed,
+	}, nil
+}
+
 func GetLinkByFileId(db *sql.DB, user_id int32, file_id int32) (*DBLink, bool, error) {
 	stmt := `SELECT id, access_key, access_count, file_id, created_by, created_at FROM links WHERE created_by=$1 AND file_id=$2`
 	rows, err := db.Query(stmt, user_id, file_id)

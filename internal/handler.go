@@ -305,6 +305,16 @@ func (h *Handler) UploadFile(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	// Check that this account has enough space left for upload
+	storageMetrics, err := database.GetUserStorageMetrics(h.Database, c.Keys["user_id"].(int32))
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	if storageMetrics.SizeUsed+file.Size > storageMetrics.SizeAllowed {
+		c.AbortWithError(http.StatusRequestEntityTooLarge, errors.New("file upload exceeds account size limit"))
+		return
+	}
 
 	random, err := generateRandomBytes(32)
 	if err != nil {

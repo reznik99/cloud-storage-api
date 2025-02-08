@@ -35,3 +35,9 @@ type DBPasswordReset struct {
 	UserId    int32
 	CreatedAt time.Time
 }
+
+type DBStorageMetrics struct {
+	UserId      int32
+	SizeUsed    int64
+	SizeAllowed int64
+}
