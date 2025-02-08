@@ -31,6 +31,9 @@ func CheckWebSocketOrigin(r *http.Request) bool {
 // InitCors parses env variables for allowed cors origins and creates a cors config, then returns middleware func for gin
 func (h *Handler) InitCors() gin.HandlerFunc {
 	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	if !h.IsProduction {
+		allowedOrigins = []string{"*"}
+	}
 	return cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowCredentials: true,
@@ -42,10 +45,13 @@ func (h *Handler) InitCors() gin.HandlerFunc {
 // InitCookieStore parses env variables for cookie key and duration, creates session storage and returns middleware func for gin
 func (h *Handler) InitCookieStore() gin.HandlerFunc {
 	cookieAuthKey := os.Getenv("COOKIE_AUTH_KEY")
+	if len(cookieAuthKey) < 8 {
+		h.Logger.Fatal("COOKIE_AUTH_KEY is insecure")
+	}
 	cookieDuration := os.Getenv("COOKIE_DURATION")
 	dur, err := time.ParseDuration(cookieDuration)
 	if err != nil {
-		h.Logger.Fatalf("Invalid COOKIE_DURATION  '%s': %s", cookieDuration, err)
+		h.Logger.Fatalf("COOKIE_DURATION is invalid '%s': %s", cookieDuration, err)
 	}
 	h.cookieDuration = int(dur.Seconds())
 
@@ -56,15 +62,19 @@ func (h *Handler) InitCookieStore() gin.HandlerFunc {
 // creates a standard cookie and writes it on this gin context
 func (h *Handler) createCookie(c *gin.Context, id int32) {
 	session := sessions.Default(c)
-	session.Options(sessions.Options{
+	sessOpts := sessions.Options{
 		Path:     "/",                     // Path for cookie, whole website
 		Domain:   c.Request.Host,          // Domain for which cookie should be sent
 		MaxAge:   h.cookieDuration,        // Lifespan of cookie
 		Secure:   true,                    // HTTPS only (except localhost)
-		HttpOnly: true,                    // Always true
-		SameSite: http.SameSiteStrictMode, // TODO: figure out ideal Value
-	})
+		HttpOnly: true,                    // Cookie unaccessible to javascript
+		SameSite: http.SameSiteStrictMode, // Cookie not sent to cross-origin requests
+	}
+	if !h.IsProduction {
+		sessOpts.SameSite = http.SameSiteLaxMode
+	}
 
+	session.Options(sessOpts)
 	// Set session data
 	session.Set("id", id)
 

@@ -24,6 +24,7 @@ type Handler struct {
 	Upgrader        websocket.Upgrader
 	WebSockets      sync.Map
 	cookieDuration  int
+	IsProduction    bool
 }
 
 func (h *Handler) Login(c *gin.Context) {

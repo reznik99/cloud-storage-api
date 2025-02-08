@@ -18,6 +18,7 @@ import (
 
 // Version tag is populated during build
 var Version = "Development"
+var IsProduction = false
 var logger = logrus.New()
 
 func init() {
@@ -28,12 +29,12 @@ func init() {
 	}
 
 	enviroment := os.Getenv("ENVIROMENT")
-	isProduction := strings.EqualFold(enviroment, "Production")
+	IsProduction := strings.EqualFold(enviroment, "PRODUCTION")
 
 	logger = &logrus.Logger{
 		Out: os.Stderr,
 		Formatter: &logrus.TextFormatter{
-			DisableTimestamp: isProduction,
+			DisableTimestamp: IsProduction,
 			FullTimestamp:    true,
 			TimestampFormat:  time.DateTime,
 		},
@@ -43,7 +44,7 @@ func init() {
 		ReportCaller: false,
 	}
 	logger.Info("Loaded env variables")
-	if isProduction {
+	if IsProduction {
 		logger.Info("Enviroment 'Production'")
 	} else {
 		logger.Info("Enviroment 'Development'")
@@ -65,12 +66,13 @@ func main() {
 		Logger:          logger,
 		Database:        db,
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
+		WebSockets:      sync.Map{},
+		IsProduction:    IsProduction,
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			CheckOrigin:     internal.CheckWebSocketOrigin,
 		},
-		WebSockets: sync.Map{},
 	}
 	gin.SetMode(gin.ReleaseMode)
 
