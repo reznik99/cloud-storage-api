@@ -9,6 +9,7 @@ type DBUser struct {
 	CreatedAt         time.Time
 	LastSeen          time.Time
 	WrappedAccountKey string
+	AllowedStorage    int64
 }
 
 type DBFile struct {

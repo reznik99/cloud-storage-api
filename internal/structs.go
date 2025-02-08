@@ -13,6 +13,7 @@ type LoginRes struct {
 	CreatedAt         time.Time `json:"created_at"`
 	LastSeen          time.Time `json:"last_seen"`
 	WrappedAccountKey string    `json:"wrapped_account_key"` // This is wrapped with the master key
+	AllowedStorage    int64     `json:"allowed_storage"`
 }
 type CRVRes struct {
 	ClientRandomValue string `json:"client_random_value"`

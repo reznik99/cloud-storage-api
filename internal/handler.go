@@ -152,6 +152,7 @@ func (h *Handler) Session(c *gin.Context) {
 		CreatedAt:         user.CreatedAt,
 		LastSeen:          user.LastSeen,
 		WrappedAccountKey: user.WrappedAccountKey,
+		AllowedStorage:    user.AllowedStorage,
 	})
 }
 
@@ -635,9 +636,10 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	}
 
 	// Send email with reset-code
+	// TODO: Async send
 	if err := SendPasswordResetEmail(user.EmailAddress, resetCode); err != nil {
 		h.Logger.Errorf("Failed to send password reset email: %s", err)
-		c.AbortWithError(http.StatusUnauthorized, errors.New("failed to send password reset email"))
+		c.JSON(http.StatusOK, nil)
 		return
 	}
 
