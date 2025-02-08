@@ -67,6 +67,7 @@ func (h *Handler) Login(c *gin.Context) {
 		CreatedAt:         user.CreatedAt,
 		LastSeen:          user.LastSeen,
 		WrappedAccountKey: user.WrappedAccountKey,
+		AllowedStorage:    user.AllowedStorage,
 	})
 }
 
