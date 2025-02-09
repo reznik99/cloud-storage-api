@@ -586,9 +586,12 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 	}
 
 	go func() {
-		err := database.UpdateLinkDownloadCount(h.Database, link_id)
-		if err != nil {
-			h.Logger.Warnf("Failed to update link download count: %s", err)
+		// Only increment download count if it's not a range request, (Unencrypted video files will use this for streaming into the browser)
+		if c.GetHeader("Range") == "" {
+			err := database.UpdateLinkDownloadCount(h.Database, link_id)
+			if err != nil {
+				h.Logger.Warnf("Failed to update link download count: %s", err)
+			}
 		}
 	}()
 
