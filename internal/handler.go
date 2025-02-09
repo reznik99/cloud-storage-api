@@ -298,10 +298,6 @@ func (h *Handler) ListFiles(c *gin.Context) {
 
 func (h *Handler) UploadFile(c *gin.Context) {
 	wrappedFileKey := c.Request.FormValue("wrapped_file_key")
-	if wrappedFileKey == "" {
-		c.AbortWithError(http.StatusBadRequest, errors.New("encrypted file key is required for file upload"))
-		return
-	}
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
