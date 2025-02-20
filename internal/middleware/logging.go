@@ -79,16 +79,22 @@ func LogHandler(logger *logrus.Logger) gin.HandlerFunc {
 		method := c.Request.Method
 
 		c.Next() // Process request
+
+		if path == "/api/metrics" {
+			return // Don't log and don't count metrics requests in metrics
+		}
+
 		status := c.Writer.Status()
 		clientIP := c.ClientIP()
 		latency := time.Since(start)
 		if status >= 400 {
 			logger.Errorf("from: %s | took: %dms | %d %s %s", clientIP, latency.Milliseconds(), status, method, path)
 			ErrorCount.WithLabelValues(path, http.StatusText(status)).Inc()
-		} else if path == "/api/metrics" {
-			return // Don't log and don't count this request
 		} else {
 			logger.Infof("from: %s | took: %dms | %d %s %s", clientIP, latency.Milliseconds(), status, method, path)
+		}
+		if c.GetHeader("Range") != "" {
+			return // Don't count range requests in metrics
 		}
 		RequestCount.WithLabelValues(path, http.StatusText(status)).Inc()
 	}

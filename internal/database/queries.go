@@ -106,7 +106,7 @@ func GetFileById(db *sql.DB, file_id int32) (*DBFile, bool, error) {
 func GetUserStorageMetrics(db *sql.DB, user_id int32) (*DBStorageMetrics, error) {
 	// Get size used if any
 	var storageUsed int64
-	fileRows, err := db.Query(`SELECT SUM(file_size) FROM files WHERE user_id = $1`, user_id)
+	fileRows, err := db.Query(`SELECT COALESCE(SUM(file_size),0) FROM files WHERE user_id = $1`, user_id)
 	if err != nil {
 		return nil, err
 	}
