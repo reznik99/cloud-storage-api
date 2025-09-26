@@ -13,7 +13,6 @@ func SendPasswordResetEmail(toEmail string, resetCode string) error {
 	var fromEmail = os.Getenv("EMAIL_ADDRESS")
 
 	// Create email object
-	// TODO: use HTML template?
 	msg := mail.NewMsg()
 	if err := msg.From(fromEmail); err != nil {
 		return fmt.Errorf("invalid from email address '%s': %s", fromEmail, err)
@@ -22,8 +21,12 @@ func SendPasswordResetEmail(toEmail string, resetCode string) error {
 		return fmt.Errorf("invalid to email address '%s': %s", toEmail, err)
 	}
 	msg.Subject(subject)
+	// TODO: use HTML template
 	msg.SetBodyString(mail.TypeTextPlain, body+resetCode)
 
+	// Remove lib version from headers
+	msg.SetGenHeader("X-Mailer", "G-Storage")
+	msg.SetGenHeader("User-Agent", "G-Storage")
 	// Send email
 	if err := msg.WriteToSendmail(); err != nil {
 		return fmt.Errorf("sendmail err: %s", err)
