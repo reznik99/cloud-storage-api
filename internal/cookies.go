@@ -91,7 +91,7 @@ func (h *Handler) destroyCookie(c *gin.Context) {
 		MaxAge:   -1,
 		Secure:   true,
 		HttpOnly: true,
-		SameSite: 2,
+		SameSite: http.SameSiteLaxMode,
 	})
 	session.Clear()
 	session.Save()
