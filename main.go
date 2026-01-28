@@ -114,6 +114,8 @@ func main() {
 	router.POST("/api/reset_password", handler.ResetPassword)
 	// Websockets
 	router.GET("/ws", handler.NewWebsocket)
+	// TURN creds
+	router.GET("/api/turn_credentials", handler.GenerateTURNCredentials)
 
 	listenAddr := fmt.Sprintf("%s:%s", os.Getenv("LISTEN_ADDR"), os.Getenv("LISTEN_PORT"))
 	logger.Infof("Cloud-Storage API (%s) is online '%s'", Version, listenAddr)
@@ -121,8 +123,7 @@ func main() {
 	// Start websocket cleanup routine
 	go handler.PingSockets()
 	// Listen and serve
-	err = router.Run(listenAddr)
-	if err != nil {
+	if err := router.Run(listenAddr); err != nil {
 		logger.Fatalf("Server fatal error: %s", err)
 	}
 	logger.Info("Server shutdown successfully")

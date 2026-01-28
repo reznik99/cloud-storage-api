@@ -1,12 +1,16 @@
 package internal
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/nbutton23/zxcvbn-go"
 	"golang.org/x/crypto/argon2"
@@ -129,4 +133,22 @@ func decodeHash(encodedHash string) (p *ArgonParams, salt, hash []byte, err erro
 	p.keyLength = uint32(len(hash))
 
 	return p, salt, hash, nil
+}
+
+type TURNCredential struct {
+	Username   string `json:"username"`
+	Credential string `json:"credential"`
+}
+
+func GenerateTURNCredential(identifier string) (TURNCredential, error) {
+	secret := os.Getenv("TURN_SERVER_SECRET")
+	toBeSigned := fmt.Sprintf("%d%d:%s", time.Now().Unix(), 3600, identifier)
+	hm := hmac.New(sha1.New, []byte(secret))
+
+	credential := hm.Sum([]byte(toBeSigned))
+
+	return TURNCredential{
+		Username:   identifier,
+		Credential: base64.StdEncoding.EncodeToString(credential),
+	}, nil
 }

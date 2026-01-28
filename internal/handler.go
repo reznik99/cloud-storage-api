@@ -715,3 +715,14 @@ func (h *Handler) NewWebsocket(c *gin.Context) {
 
 	go h.HandleSocket(hex.EncodeToString(randomBytes), conn)
 }
+
+func (h *Handler) GenerateTURNCredentials(c *gin.Context) {
+	identifier := c.ClientIP()
+	h.Logger.Infof("Generating TURN credentials for %s", identifier)
+	creds, err := GenerateTURNCredential(identifier)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, creds)
+}
