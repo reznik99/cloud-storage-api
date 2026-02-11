@@ -92,6 +92,7 @@ func (h *Handler) Signup(c *gin.Context) {
 	// Validate password strength
 	if err = ValidatePassword(req.Password); err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.Password)
@@ -186,6 +187,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	// Validate password strength
 	if err = ValidatePassword(req.Password); err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.NewPassword)
@@ -680,6 +682,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	// Validate password strength
 	if err = ValidatePassword(req.NewPassword); err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.NewPassword)
