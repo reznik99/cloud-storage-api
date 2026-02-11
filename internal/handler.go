@@ -185,7 +185,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	// Validate password strength
-	if err = ValidatePassword(req.Password); err != nil {
+	if err = ValidatePassword(req.NewPassword); err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
