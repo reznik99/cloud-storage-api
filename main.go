@@ -29,7 +29,7 @@ func init() {
 	}
 
 	enviroment := os.Getenv("ENVIROMENT")
-	IsProduction := strings.EqualFold(enviroment, "PRODUCTION")
+	IsProduction = strings.EqualFold(enviroment, "PRODUCTION")
 
 	logger = &logrus.Logger{
 		Out: os.Stderr,
