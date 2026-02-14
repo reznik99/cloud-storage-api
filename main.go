@@ -90,9 +90,10 @@ func main() {
 	router.GET("/api/metrics", middleware.MetricsHandler())
 
 	logger.Info("Registering api routes...")
+	ratelimit := middleware.RateLimiter("10-M")
 	// Auth
-	router.POST("/api/login", handler.Login)
-	router.POST("/api/signup", handler.Signup)
+	router.POST("/api/login", ratelimit, handler.Login)
+	router.POST("/api/signup", ratelimit, handler.Signup)
 	router.POST("/api/logout", handler.Logout)
 	router.GET("/api/client_random_value", handler.GetClientRandomValue)
 	router.GET("/api/session", middleware.Protected(handler.Session))
@@ -110,8 +111,8 @@ func main() {
 	router.GET("/api/link_preview", handler.PreviewLink)
 	router.GET("/api/link_download", handler.DownloadLink)
 	// Password Reset
-	router.GET("/api/reset_password", handler.RequestResetPassword)
-	router.POST("/api/reset_password", handler.ResetPassword)
+	router.GET("/api/reset_password", ratelimit, handler.RequestResetPassword)
+	router.POST("/api/reset_password", ratelimit, handler.ResetPassword)
 	// Websockets
 	router.GET("/ws", handler.NewWebsocket)
 	// TURN creds
