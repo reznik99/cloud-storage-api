@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -103,12 +104,19 @@ func LogHandler(logger *logrus.Logger) gin.HandlerFunc {
 // Wraps the prometheus handler with basic auth
 func MetricsHandler() gin.HandlerFunc {
 	promHandler := promhttp.Handler()
-	metricsPassword := os.Getenv("METRICS_PASSWORD")
+	creds := strings.SplitN(os.Getenv("METRICS_CREDENTIALS"), ":", 2)
+	if len(creds) != 2 {
+		panic("METRICS_CREDENTIALS must be in username:password format")
+	}
+	expectedUser := creds[0]
+	expectedPass := creds[1]
 
 	return func(c *gin.Context) {
-		_, pass, ok := c.Request.BasicAuth()
+		user, pass, ok := c.Request.BasicAuth()
 
-		if !ok || subtle.ConstantTimeCompare([]byte(pass), []byte(metricsPassword)) != 1 {
+		if !ok ||
+			subtle.ConstantTimeCompare([]byte(user), []byte(expectedUser)) != 1 ||
+			subtle.ConstantTimeCompare([]byte(pass), []byte(expectedPass)) != 1 {
 			c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
 			return
 		}
