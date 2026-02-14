@@ -79,9 +79,15 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
+	// Validate email format
+	if err = ValidateEmail(req.EmailAddress); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
 	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -252,6 +258,9 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 			h.Logger.Warnf("Failed to delete file: %s", err)
 			continue
 		}
+	}
+	if err := rows.Err(); err != nil {
+		h.Logger.Errorf("Error iterating file rows during account deletion: %s", err)
 	}
 	// Delete user (links, files and reset_codes cascade delete)
 	_, err = h.Database.Exec(`DELETE FROM users WHERE id=$1`, user.ID)

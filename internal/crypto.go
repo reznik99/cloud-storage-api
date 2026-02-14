@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ var (
 	ErrPasswordMismatch    = errors.New("passwords don't match")
 	ErrPasswordTooShort    = errors.New("password is shorter than 8 characters")
 	ErrPasswordTooWeak     = errors.New("password is too weak")
+	ErrInvalidEmail        = errors.New("invalid email address")
 )
 
 const (
@@ -40,6 +42,14 @@ type ArgonParams struct {
 	parallelism uint8  // ArgonThreads
 	saltLength  uint32 // ArgonSaltLength
 	keyLength   uint32 // ArgonKeyLength
+}
+
+func ValidateEmail(email string) error {
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return ErrInvalidEmail
+	}
+	return nil
 }
 
 func ValidatePassword(password string) error {
