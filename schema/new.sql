@@ -38,6 +38,6 @@ CREATE TABLE password_reset_codes (
     id SERIAL PRIMARY KEY,
     user_id SERIAL REFERENCES users(id) ON DELETE CASCADE,
     reset_code VARCHAR(128) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE password_reset_codes OWNER TO gdrive;
