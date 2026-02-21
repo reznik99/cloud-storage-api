@@ -78,7 +78,7 @@ func main() {
 
 	middleware.PrometheusInit()
 	router := gin.New()
-	router.SetTrustedProxies([]string{"127.0.0.1"})
+	_ = router.SetTrustedProxies([]string{"127.0.0.1"})
 	router.Use(gin.Recovery())
 	router.Use(middleware.LogHandler(logger))
 	router.Use(middleware.ErrorHandler(logger))

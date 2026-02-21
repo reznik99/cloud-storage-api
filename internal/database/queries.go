@@ -162,14 +162,13 @@ func UpdateLinkDownloadCount(db *sql.DB, link_id int32) error {
 	if err != nil {
 		return fmt.Errorf("begin err: %s", err)
 	}
+	defer func() { _ = tx.Rollback() }()
 
 	rows, err := tx.Query(`SELECT access_count FROM links WHERE id = $1 FOR UPDATE`, link_id)
 	if err != nil {
-		tx.Rollback()
 		return fmt.Errorf("query err: %s", err)
 	}
 	if !rows.Next() {
-		tx.Rollback()
 		return nil
 	}
 
@@ -177,14 +176,12 @@ func UpdateLinkDownloadCount(db *sql.DB, link_id int32) error {
 	err = rows.Scan(&accessCount)
 	if err != nil {
 		rows.Close()
-		tx.Rollback()
 		return fmt.Errorf("scan err: %s", err)
 	}
 
 	rows.Close()
 	_, err = tx.Exec(`UPDATE links SET access_count = $1 WHERE id = $2`, accessCount+1, link_id)
 	if err != nil {
-		tx.Rollback()
 		return fmt.Errorf("exec err: %s", err)
 	}
 

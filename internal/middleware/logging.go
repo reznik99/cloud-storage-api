@@ -117,7 +117,7 @@ func MetricsHandler() gin.HandlerFunc {
 		if !ok ||
 			subtle.ConstantTimeCompare([]byte(user), []byte(expectedUser)) != 1 ||
 			subtle.ConstantTimeCompare([]byte(pass), []byte(expectedPass)) != 1 {
-			c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
+			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("Unauthorized"))
 			return
 		}
 

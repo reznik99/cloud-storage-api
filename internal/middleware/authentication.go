@@ -15,7 +15,7 @@ func Protected(next gin.HandlerFunc) gin.HandlerFunc {
 		session := sessions.Default(c)
 		userID, ok := session.Get("id").(int32)
 		if !ok {
-			c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
 			return
 		}
 		// Populate request with session values
