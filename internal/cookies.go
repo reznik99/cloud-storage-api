@@ -79,7 +79,7 @@ func (h *Handler) createCookie(c *gin.Context, id int32) {
 	session.Set("id", id)
 
 	// Set-Cookie header for response
-	session.Save()
+	_ = session.Save()
 }
 
 // deletes the standard cookie for this gin context
@@ -94,5 +94,5 @@ func (h *Handler) destroyCookie(c *gin.Context) {
 		SameSite: http.SameSiteLaxMode,
 	})
 	session.Clear()
-	session.Save()
+	_ = session.Save()
 }

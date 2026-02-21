@@ -31,27 +31,27 @@ func (h *Handler) Login(c *gin.Context) {
 	var req = &LoginReq{}
 	err := c.BindJSON(req)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	if user == nil { // Email not found
-		c.AbortWithError(http.StatusBadRequest, errors.New("incorrect email address or password"))
+		middleware.Abort(c, http.StatusBadRequest, errors.New("incorrect email address or password"))
 		return
 	}
 	match, err := ComparePassword(req.Password, user.Password)
 	if err != nil { // Error hashing passwords
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !match { // Password mis-match
-		c.AbortWithError(http.StatusBadRequest, errors.New("incorrect email address or password"))
+		middleware.Abort(c, http.StatusBadRequest, errors.New("incorrect email address or password"))
 		return
 	}
 
@@ -75,35 +75,42 @@ func (h *Handler) Signup(c *gin.Context) {
 	var req = &SignupReq{}
 	err := c.BindJSON(req)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate email format
+	if err = ValidateEmail(req.EmailAddress); err != nil {
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
 	if user != nil {
-		c.AbortWithError(http.StatusBadRequest, errors.New("email address already taken"))
+		middleware.Abort(c, http.StatusBadRequest, errors.New("email address already taken"))
 		return
 	}
 	// Validate password strength
 	if err = ValidatePassword(req.Password); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
+		return
 	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.Password)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	// Store details
 	_, err = h.Database.Exec(`INSERT INTO users(email_address, password, client_random_value, wrapped_account_key) VALUES($1, $2, $3, $4)`,
 		req.EmailAddress, passwordHash, req.ClientRandomValue, req.WrappedAccountKey)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -124,7 +131,7 @@ func (h *Handler) GetClientRandomValue(c *gin.Context) {
 	// Get CRV from database for emailAddress
 	crv, err := database.GetUserCRVByEmail(h.Database, emailAddress)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -144,7 +151,7 @@ func (h *Handler) Session(c *gin.Context) {
 	userId := c.Keys["user_id"].(int32)
 	user, err := database.GetUserById(h.Database, userId)
 	if err != nil || user == nil {
-		c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+		middleware.Abort(c, http.StatusUnauthorized, errors.New("unauthenticated"))
 		return
 	}
 
@@ -160,44 +167,45 @@ func (h *Handler) Session(c *gin.Context) {
 func (h *Handler) ChangePassword(c *gin.Context) {
 	var req = &ChangePasswordReq{}
 	if err := c.BindJSON(req); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	// Get user
 	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if user == nil {
-		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		middleware.Abort(c, http.StatusForbidden, errors.New("invalid credentials"))
 		return
 	}
 	// Compare old passwords
 	match, err := ComparePassword(req.Password, user.Password)
 	if err != nil { // Error hashing passwords
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !match { // Password mis-match
-		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		middleware.Abort(c, http.StatusForbidden, errors.New("invalid credentials"))
 		return
 	}
 	// Validate password strength
-	if err = ValidatePassword(req.Password); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+	if err = ValidatePassword(req.NewPassword); err != nil {
+		middleware.Abort(c, http.StatusBadRequest, err)
+		return
 	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.NewPassword)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	// Store new details
 	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
 		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, user.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -207,33 +215,33 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 func (h *Handler) DeleteAccount(c *gin.Context) {
 	var req = &DeleteAccountReq{}
 	if err := c.BindJSON(req); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	// Get user
 	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if user == nil {
-		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		middleware.Abort(c, http.StatusForbidden, errors.New("invalid credentials"))
 		return
 	}
 	// Compare passwords
 	match, err := ComparePassword(req.Password, user.Password)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !match {
-		c.AbortWithError(http.StatusForbidden, errors.New("invalid credentials"))
+		middleware.Abort(c, http.StatusForbidden, errors.New("invalid credentials"))
 		return
 	}
 	// Get files for this account
 	rows, err := h.Database.Query(`SELECT id, location FROM files WHERE user_id = $1`, user.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
@@ -251,10 +259,13 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 			continue
 		}
 	}
+	if err := rows.Err(); err != nil {
+		h.Logger.Errorf("Error iterating file rows during account deletion: %s", err)
+	}
 	// Delete user (links, files and reset_codes cascade delete)
 	_, err = h.Database.Exec(`DELETE FROM users WHERE id=$1`, user.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -266,7 +277,7 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 func (h *Handler) ListFiles(c *gin.Context) {
 	rows, err := h.Database.Query(`SELECT file_name, file_size, created_at, wrapped_file_key FROM files WHERE user_id = $1`, c.Keys["user_id"])
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
@@ -300,23 +311,23 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	wrappedFileKey := c.Request.FormValue("wrapped_file_key")
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	// Check that this account has enough space left for upload
 	storageMetrics, err := database.GetUserStorageMetrics(h.Database, c.Keys["user_id"].(int32))
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if storageMetrics.SizeUsed+file.Size > storageMetrics.SizeAllowed {
-		c.AbortWithError(http.StatusRequestEntityTooLarge, errors.New("file upload exceeds account size limit"))
+		middleware.Abort(c, http.StatusRequestEntityTooLarge, errors.New("file upload exceeds account size limit"))
 		return
 	}
 
 	random, err := generateRandomBytes(32)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	location := hex.EncodeToString(random)
@@ -327,13 +338,13 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	stmt := `INSERT INTO files(user_id, location, file_name, file_size, file_type, wrapped_file_key) VALUES($1, $2, $3, $4, $5, $6)`
 	_, err = h.Database.Exec(stmt, c.Keys["user_id"], location, file.Filename, file.Size, fileMimeType, wrappedFileKey)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	err = c.SaveUploadedFile(file, filepath.Join(h.FileStoragePath, location))
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -346,11 +357,11 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 	fileName := c.Query("name")
 	rows, err := h.Database.Query(`SELECT location, file_type, file_size FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	if !rows.Next() {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 	defer rows.Close()
@@ -359,7 +370,7 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 	var fileSize int64
 	var fileMimeType string
 	if rows.Scan(&location, &fileMimeType, &fileSize) != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -376,17 +387,17 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 	var req = &DeleteFileReq{}
 	err := c.BindJSON(req)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	rows, err := h.Database.Query(`SELECT id, location FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], req.Name)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !rows.Next() {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 	defer rows.Close()
@@ -395,13 +406,13 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 	var location string
 	err = rows.Scan(&id, &location)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	_, err = h.Database.Exec(`DELETE FROM files WHERE id = $1`, id)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -419,23 +430,23 @@ func (h *Handler) CreateLink(c *gin.Context) {
 	var req = &CreateLinkReq{}
 	err := c.BindJSON(req)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	dbFile, found, err := database.GetFileByName(h.Database, userID, req.Name)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !found {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 
 	random, err := generateRandomBytes(16)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	accessKey := hex.EncodeToString(random)
@@ -443,7 +454,7 @@ func (h *Handler) CreateLink(c *gin.Context) {
 	stmt := `INSERT INTO links(access_key, access_count, file_id, created_by) VALUES($1, $2, $3, $4)`
 	_, err = h.Database.Exec(stmt, accessKey, 0, dbFile.Id, userID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -463,21 +474,21 @@ func (h *Handler) GetLink(c *gin.Context) {
 
 	dbFile, found, err := database.GetFileByName(h.Database, userID, fileName)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !found {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 
 	dbLink, found, err := database.GetLinkByFileId(h.Database, userID, dbFile.Id)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !found {
-		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("link not found"))
 		return
 	}
 
@@ -495,24 +506,24 @@ func (h *Handler) DeleteLink(c *gin.Context) {
 	var req = &DeleteLinkReq{}
 	err := c.BindJSON(req)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	dbFile, found, err := database.GetFileByName(h.Database, userID, req.Name)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if !found {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 
 	stmt := `DELETE FROM links WHERE created_by = $1 AND file_id = $2`
 	_, err = h.Database.Exec(stmt, userID, dbFile.Id)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -523,28 +534,28 @@ func (h *Handler) PreviewLink(c *gin.Context) {
 	accessKey := c.Query("access_key")
 	rows, err := h.Database.Query(`SELECT file_id FROM links WHERE access_key = $1`, accessKey)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	if !rows.Next() {
-		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("link not found"))
 		return
 	}
 	defer rows.Close()
 
 	var file_id int32
 	if rows.Scan(&file_id) != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	dbFile, found, err := database.GetFileById(h.Database, file_id)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	if !found {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 
@@ -560,28 +571,28 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 	accessKey := c.Query("access_key")
 	rows, err := h.Database.Query(`SELECT id, file_id FROM links WHERE access_key = $1`, accessKey)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	if !rows.Next() {
-		c.AbortWithError(http.StatusNotFound, errors.New("link not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("link not found"))
 		return
 	}
 	defer rows.Close()
 
 	var link_id, file_id int32
 	if rows.Scan(&link_id, &file_id) != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	dbFile, found, err := database.GetFileById(h.Database, file_id)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 	if !found {
-		c.AbortWithError(http.StatusNotFound, errors.New("file not found"))
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
 
@@ -610,7 +621,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	user, err := database.GetUserByEmail(h.Database, emailAddress)
 	if err != nil {
 		h.Logger.Errorf("Failed to get user %s from database: %s", emailAddress, err)
-		c.AbortWithError(http.StatusInternalServerError, errors.New("failed to get user from database"))
+		middleware.Abort(c, http.StatusInternalServerError, errors.New("failed to get user from database"))
 		return
 	}
 	if user == nil {
@@ -622,7 +633,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	// Generate reset-code
 	randomBytes, err := generateRandomBytes(16)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	resetCode := hex.EncodeToString(randomBytes)
@@ -631,7 +642,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	_, err = h.Database.Exec(`INSERT INTO password_reset_codes(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
 	if err != nil {
 		h.Logger.Errorf("Failed to save reset-code into database: %s", err)
-		c.AbortWithError(http.StatusUnauthorized, errors.New("failed to save reset-code into database"))
+		middleware.Abort(c, http.StatusUnauthorized, errors.New("failed to save reset-code into database"))
 		return
 	}
 
@@ -650,18 +661,18 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	var req = &ResetPasswordReq{}
 	err := c.BindJSON(req)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
 	// Get password reset entry
 	dbPR, err := database.GetPasswordResetByCode(h.Database, req.ResetCode)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	if dbPR == nil {
-		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code invalid"))
+		middleware.Abort(c, http.StatusBadRequest, errors.New("reset-code invalid"))
 		return
 	}
 
@@ -674,24 +685,25 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	}()
 
 	if time.Since(dbPR.CreatedAt) > time.Minute*10 {
-		c.AbortWithError(http.StatusBadRequest, errors.New("reset-code expired"))
+		middleware.Abort(c, http.StatusBadRequest, errors.New("reset-code expired"))
 		return
 	}
 	// Validate password strength
 	if err = ValidatePassword(req.NewPassword); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		middleware.Abort(c, http.StatusBadRequest, err)
+		return
 	}
 	// Hash new password
 	passwordHash, err := HashPassword(req.NewPassword)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	// Store new details
 	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
 		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, dbPR.UserId)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -721,7 +733,7 @@ func (h *Handler) GenerateTURNCredentials(c *gin.Context) {
 	h.Logger.Infof("Generating TURN credentials for %s", identifier)
 	creds, err := GenerateTURNCredential(identifier)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, creds)

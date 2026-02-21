@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ var (
 	ErrPasswordMismatch    = errors.New("passwords don't match")
 	ErrPasswordTooShort    = errors.New("password is shorter than 8 characters")
 	ErrPasswordTooWeak     = errors.New("password is too weak")
+	ErrInvalidEmail        = errors.New("invalid email address")
 )
 
 const (
@@ -40,6 +42,14 @@ type ArgonParams struct {
 	parallelism uint8  // ArgonThreads
 	saltLength  uint32 // ArgonSaltLength
 	keyLength   uint32 // ArgonKeyLength
+}
+
+func ValidateEmail(email string) error {
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return ErrInvalidEmail
+	}
+	return nil
 }
 
 func ValidatePassword(password string) error {
@@ -142,13 +152,16 @@ type TURNCredential struct {
 
 func GenerateTURNCredential(identifier string) (TURNCredential, error) {
 	secret := os.Getenv("TURN_SERVER_SECRET")
-	toBeSigned := fmt.Sprintf("%d%d:%s", time.Now().Unix(), 3600, identifier)
-	hm := hmac.New(sha1.New, []byte(secret))
+	// Username is "expiry_timestamp:identifier" per draft-uberti-behave-turn-rest-00
+	expiry := time.Now().Unix() + 3600
+	username := fmt.Sprintf("%d:%s", expiry, identifier)
 
-	credential := hm.Sum([]byte(toBeSigned))
+	hm := hmac.New(sha1.New, []byte(secret))
+	hm.Write([]byte(username))
+	credential := hm.Sum(nil)
 
 	return TURNCredential{
-		Username:   identifier,
+		Username:   username,
 		Credential: base64.StdEncoding.EncodeToString(credential),
 	}, nil
 }

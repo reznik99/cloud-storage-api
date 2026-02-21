@@ -13,14 +13,13 @@ func Protected(next gin.HandlerFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check if user has a cookie (authenticated)
 		session := sessions.Default(c)
-		id := session.Get("id")
-		if id == nil {
-			c.AbortWithError(http.StatusUnauthorized, errors.New("unauthenticated"))
+		userID, ok := session.Get("id").(int32)
+		if !ok {
+			Abort(c, http.StatusUnauthorized, errors.New("unauthenticated"))
 			return
 		}
 		// Populate request with session values
-		c.Keys["user_id"] = session.Get("id")
-		// TODO: Add more
+		c.Keys["user_id"] = userID
 
 		next(c)
 	}
