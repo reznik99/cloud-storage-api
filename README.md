@@ -192,13 +192,13 @@ File metadata, user accounts, and share links live in PostgreSQL. Actual file bl
 | `METRICS_PASSWORD` | `user:password` for `/api/metrics` basic auth |
 | `TURN_SERVER_SECRET` | Shared secret for TURN credential generation |
 
-### Build
+### Build & Lint
 
 ```bash
-# Linux (amd64, static binary)
-./lin_build.sh
-
-# Output: dist/storage-api
+make build          # Linux amd64 static binary → dist/storage-api
+make test           # Run tests
+make lint           # Run golangci-lint
+make all            # All of the above
 ```
 
 ### Deploy (systemd)
