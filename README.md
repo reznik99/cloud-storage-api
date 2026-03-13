@@ -38,13 +38,13 @@ Built with Go + Gin, backed by PostgreSQL, and designed to run on a single Linux
                           │   ├─ CORS                        │
 ┌──────────────┐          │   └─ Prometheus Logger           │
 │   WebRTC     │   WS     │                                  │
-│  P2P Relay   │◀───────▶│  WebSocket Signaling            │
+│  P2P Relay   │◀──────▶│  WebSocket Signaling             │
 └──────────────┘          └──────┬───────────┬───────────────┘
-                                │           │
-                         ┌──────▼──┐  ┌─────▼─────┐
-                         │ Postgres│  │   Disk    │
-                         │ (meta)  │  │  (files)  │
-                         └─────────┘  └───────────┘
+                                 │           │
+                          ┌──────▼──┐  ┌─────▼─────┐
+                          │ Postgres│  │   Disk    │
+                          │ (meta)  │  │  (files)  │
+                          └─────────┘  └───────────┘
 ```
 
 File metadata, user accounts, and share links live in PostgreSQL. Actual file blobs are stored on disk with randomized hex filenames — the original name and MIME type are kept in the database (necessary since encrypted content can't be sniffed).
@@ -55,7 +55,7 @@ File metadata, user accounts, and share links live in PostgreSQL. Actual file bl
 
 | Layer | Technology |
 |-------|------------|
-| Language | Go 1.25 |
+| Language | Go 1.26 |
 | HTTP Framework | [Gin](https://github.com/gin-gonic/gin) |
 | Database | PostgreSQL + [lib/pq](https://github.com/lib/pq) |
 | Sessions | [gorilla/sessions](https://github.com/gorilla/sessions) (signed cookies) |
