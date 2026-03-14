@@ -9,13 +9,13 @@ build:
 
 test:
 	@echo "==> Running tests..."
-	@go test ./...
+	@go test -cover ./...
 
 test-integration:
 	@echo "==> Running integration tests..."
 	@DOCKER_HOST=$$(if [ -S "$(XDG_RUNTIME_DIR)/podman/podman.sock" ]; then echo "unix://$(XDG_RUNTIME_DIR)/podman/podman.sock"; fi) \
 		TESTCONTAINERS_RYUK_DISABLED=true \
-		go test -tags=integration ./...
+		go test -tags=integration -cover -coverprofile=coverage.out ./...
 
 lint:
 	@echo "==> Linting..."
