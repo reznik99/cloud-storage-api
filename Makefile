@@ -11,6 +11,12 @@ test:
 	@echo "==> Running tests..."
 	@go test ./...
 
+test-integration:
+	@echo "==> Running integration tests..."
+	@DOCKER_HOST=$$(if [ -S "$(XDG_RUNTIME_DIR)/podman/podman.sock" ]; then echo "unix://$(XDG_RUNTIME_DIR)/podman/podman.sock"; fi) \
+		TESTCONTAINERS_RYUK_DISABLED=true \
+		go test -tags=integration ./...
+
 lint:
 	@echo "==> Linting..."
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run ./...
