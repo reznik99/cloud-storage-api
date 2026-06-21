@@ -1,6 +1,6 @@
 module storage.francescogorini.com/api
 
-go 1.26.1
+go 1.26.4
 
 require (
 	github.com/gin-contrib/cors v1.7.7
@@ -99,7 +99,6 @@ require (
 	go.opentelemetry.io/otel v1.41.0 // indirect
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/arch v0.28.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect

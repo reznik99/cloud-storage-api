@@ -1,7 +1,7 @@
 VERSION := $(shell git describe --tags)
 LDFLAGS := -X 'main.Version=$(VERSION)'
 
-all: lint test build
+all: lint vulncheck test build
 
 build:
 	@echo "==> Building $(VERSION) for linux/amd64..."
@@ -20,3 +20,7 @@ test-integration:
 lint:
 	@echo "==> Linting..."
 	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run ./...
+
+vulncheck:
+	@echo "==> Checking for known vulnerabilities..."
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
