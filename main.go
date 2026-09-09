@@ -57,7 +57,11 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Database connection error: %s", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Errorf("Error closing database: %s", err)
+		}
+	}()
 	logger.Infof("Connected to %s database", os.Getenv("DB_NAME"))
 
 	// Initialize HTTP server and routes

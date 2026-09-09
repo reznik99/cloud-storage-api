@@ -50,7 +50,9 @@ func (h *Handler) HandleSocket(socketKey string, conn *websocket.Conn) {
 	h.WebSockets.Store(socketKey, conn)
 	// Defer cleanup and closing of socket
 	defer func() {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			h.Logger.Warnf("[WS] closing socket %s: %s", socketKey, err)
+		}
 		h.WebSockets.Delete(socketKey)
 	}()
 	// Give client their key

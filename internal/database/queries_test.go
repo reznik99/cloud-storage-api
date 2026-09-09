@@ -121,7 +121,7 @@ func TestGetUserByEmail(t *testing.T) {
 	seedUser(t, "alice@test.com")
 
 	t.Run("found", func(t *testing.T) {
-		user, err := GetUserByEmail(testDB, "alice@test.com")
+		user, err := GetUserByEmail(t.Context(), testDB, "alice@test.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -137,7 +137,7 @@ func TestGetUserByEmail(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		user, err := GetUserByEmail(testDB, "nobody@test.com")
+		user, err := GetUserByEmail(t.Context(), testDB, "nobody@test.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -152,7 +152,7 @@ func TestGetUserById(t *testing.T) {
 	id := seedUser(t, "bob@test.com")
 
 	t.Run("found", func(t *testing.T) {
-		user, err := GetUserById(testDB, id)
+		user, err := GetUserById(t.Context(), testDB, id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -165,7 +165,7 @@ func TestGetUserById(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		user, err := GetUserById(testDB, 99999)
+		user, err := GetUserById(t.Context(), testDB, 99999)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestGetUserCRVByEmail(t *testing.T) {
 	seedUser(t, "crv@test.com")
 
 	t.Run("found", func(t *testing.T) {
-		crv, err := GetUserCRVByEmail(testDB, "crv@test.com")
+		crv, err := GetUserCRVByEmail(t.Context(), testDB, "crv@test.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -192,7 +192,7 @@ func TestGetUserCRVByEmail(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		crv, err := GetUserCRVByEmail(testDB, "nobody@test.com")
+		crv, err := GetUserCRVByEmail(t.Context(), testDB, "nobody@test.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -208,14 +208,14 @@ func TestUpdateLastSeen(t *testing.T) {
 	truncateAll(t)
 	id := seedUser(t, "lastseen@test.com")
 
-	before, _ := GetUserById(testDB, id)
+	before, _ := GetUserById(t.Context(), testDB, id)
 	time.Sleep(10 * time.Millisecond)
 
-	if err := UpdateLastSeen(testDB, id); err != nil {
+	if err := UpdateLastSeen(t.Context(), testDB, id); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	after, _ := GetUserById(testDB, id)
+	after, _ := GetUserById(t.Context(), testDB, id)
 	if !after.LastSeen.After(before.LastSeen) {
 		t.Error("last_seen was not updated")
 	}
@@ -229,7 +229,7 @@ func TestGetFileByName(t *testing.T) {
 	seedFile(t, uid, "doc.enc", 1024)
 
 	t.Run("found", func(t *testing.T) {
-		file, found, err := GetFileByName(testDB, uid, "doc.enc")
+		file, found, err := GetFileByName(t.Context(), testDB, uid, "doc.enc")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -245,7 +245,7 @@ func TestGetFileByName(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, found, err := GetFileByName(testDB, uid, "nope.txt")
+		_, found, err := GetFileByName(t.Context(), testDB, uid, "nope.txt")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -255,7 +255,7 @@ func TestGetFileByName(t *testing.T) {
 	})
 
 	t.Run("wrong user", func(t *testing.T) {
-		_, found, err := GetFileByName(testDB, 99999, "doc.enc")
+		_, found, err := GetFileByName(t.Context(), testDB, 99999, "doc.enc")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -271,7 +271,7 @@ func TestGetFileById(t *testing.T) {
 	fid := seedFile(t, uid, "photo.enc", 2048)
 
 	t.Run("found", func(t *testing.T) {
-		file, found, err := GetFileById(testDB, fid)
+		file, found, err := GetFileById(t.Context(), testDB, fid)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -284,7 +284,7 @@ func TestGetFileById(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, found, err := GetFileById(testDB, 99999)
+		_, found, err := GetFileById(t.Context(), testDB, 99999)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -301,7 +301,7 @@ func TestGetUserStorageMetrics(t *testing.T) {
 	uid := seedUser(t, "storage@test.com")
 
 	t.Run("no files", func(t *testing.T) {
-		m, err := GetUserStorageMetrics(testDB, uid)
+		m, err := GetUserStorageMetrics(t.Context(), testDB, uid)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -317,7 +317,7 @@ func TestGetUserStorageMetrics(t *testing.T) {
 		seedFile(t, uid, "a.enc", 100)
 		seedFile(t, uid, "b.enc", 250)
 
-		m, err := GetUserStorageMetrics(testDB, uid)
+		m, err := GetUserStorageMetrics(t.Context(), testDB, uid)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -336,7 +336,7 @@ func TestGetLinkByFileId(t *testing.T) {
 	seedLink(t, fid, uid, "abc-key")
 
 	t.Run("found", func(t *testing.T) {
-		link, found, err := GetLinkByFileId(testDB, uid, fid)
+		link, found, err := GetLinkByFileId(t.Context(), testDB, uid, fid)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -352,7 +352,7 @@ func TestGetLinkByFileId(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, found, err := GetLinkByFileId(testDB, uid, 99999)
+		_, found, err := GetLinkByFileId(t.Context(), testDB, uid, 99999)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -372,12 +372,12 @@ func TestUpdateLinkDownloadCount(t *testing.T) {
 
 	// Increment twice
 	for range 2 {
-		if err := UpdateLinkDownloadCount(testDB, lid); err != nil {
+		if err := UpdateLinkDownloadCount(t.Context(), testDB, lid); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	}
 
-	link, _, _ := GetLinkByFileId(testDB, uid, fid)
+	link, _, _ := GetLinkByFileId(t.Context(), testDB, uid, fid)
 	if link.AccessCount != 2 {
 		t.Errorf("access_count = %d, want 2", link.AccessCount)
 	}
@@ -391,7 +391,7 @@ func TestGetPasswordResetByCode(t *testing.T) {
 	testDB.Exec(`INSERT INTO password_reset_codes (user_id, reset_code) VALUES ($1, $2)`, uid, "reset-abc")
 
 	t.Run("found", func(t *testing.T) {
-		pr, err := GetPasswordResetByCode(testDB, "reset-abc")
+		pr, err := GetPasswordResetByCode(t.Context(), testDB, "reset-abc")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -407,7 +407,7 @@ func TestGetPasswordResetByCode(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		pr, err := GetPasswordResetByCode(testDB, "nonexistent")
+		pr, err := GetPasswordResetByCode(t.Context(), testDB, "nonexistent")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -19,7 +19,7 @@ test-integration:
 
 lint:
 	@echo "==> Linting..."
-	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run ./...
+	@go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run ./...
 
 vulncheck:
 	@echo "==> Checking for known vulnerabilities..."

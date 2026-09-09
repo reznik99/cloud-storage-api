@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -35,7 +36,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
+	user, err := database.GetUserByEmail(c.Request.Context(), h.Database, req.EmailAddress)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -56,7 +57,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// Authentication succeeded, update last seen value in database
-	if err := database.UpdateLastSeen(h.Database, user.ID); err != nil {
+	if err := database.UpdateLastSeen(c.Request.Context(), h.Database, user.ID); err != nil {
 		h.Logger.Warnf("Failed to update last_seen value for user %d: %s", user.ID, err)
 	}
 
@@ -85,7 +86,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 
-	user, err := database.GetUserByEmail(h.Database, req.EmailAddress)
+	user, err := database.GetUserByEmail(c.Request.Context(), h.Database, req.EmailAddress)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -107,7 +108,7 @@ func (h *Handler) Signup(c *gin.Context) {
 		return
 	}
 	// Store details
-	_, err = h.Database.Exec(`INSERT INTO users(email_address, password, client_random_value, wrapped_account_key) VALUES($1, $2, $3, $4)`,
+	_, err = h.Database.ExecContext(c.Request.Context(), `INSERT INTO users(email_address, password, client_random_value, wrapped_account_key) VALUES($1, $2, $3, $4)`,
 		req.EmailAddress, passwordHash, req.ClientRandomValue, req.WrappedAccountKey)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
@@ -129,7 +130,7 @@ func (h *Handler) GetClientRandomValue(c *gin.Context) {
 	emailAddress := c.Query("email_address")
 
 	// Get CRV from database for emailAddress
-	crv, err := database.GetUserCRVByEmail(h.Database, emailAddress)
+	crv, err := database.GetUserCRVByEmail(c.Request.Context(), h.Database, emailAddress)
 	if err != nil {
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
@@ -149,7 +150,7 @@ func (h *Handler) GetClientRandomValue(c *gin.Context) {
 
 func (h *Handler) Session(c *gin.Context) {
 	userId := c.Keys["user_id"].(int32)
-	user, err := database.GetUserById(h.Database, userId)
+	user, err := database.GetUserById(c.Request.Context(), h.Database, userId)
 	if err != nil || user == nil {
 		middleware.Abort(c, http.StatusUnauthorized, errors.New("unauthenticated"))
 		return
@@ -171,7 +172,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	// Get user
-	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
+	user, err := database.GetUserById(c.Request.Context(), h.Database, c.Keys["user_id"].(int32))
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -202,7 +203,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	// Store new details
-	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
+	_, err = h.Database.ExecContext(c.Request.Context(), `UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
 		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, user.ID)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
@@ -219,7 +220,7 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 		return
 	}
 	// Get user
-	user, err := database.GetUserById(h.Database, c.Keys["user_id"].(int32))
+	user, err := database.GetUserById(c.Request.Context(), h.Database, c.Keys["user_id"].(int32))
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -238,13 +239,22 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 		middleware.Abort(c, http.StatusForbidden, errors.New("invalid credentials"))
 		return
 	}
+	// Deletion removes files from disk before the DB rows, so detach from the
+	// request: a client disconnect must not leave the account half-deleted.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	// Get files for this account
-	rows, err := h.Database.Query(`SELECT id, location FROM files WHERE user_id = $1`, user.ID)
+	rows, err := h.Database.QueryContext(ctx, `SELECT id, location FROM files WHERE user_id = $1`, user.ID)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			h.Logger.Errorf("[DeleteAccount] closing rows: %s", err)
+		}
+	}()
 	// Delete files on disk linked to this account
 	for rows.Next() {
 		var id int32
@@ -263,7 +273,7 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 		h.Logger.Errorf("Error iterating file rows during account deletion: %s", err)
 	}
 	// Delete user (links, files and reset_codes cascade delete)
-	_, err = h.Database.Exec(`DELETE FROM users WHERE id=$1`, user.ID)
+	_, err = h.Database.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, user.ID)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -275,12 +285,16 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 }
 
 func (h *Handler) ListFiles(c *gin.Context) {
-	rows, err := h.Database.Query(`SELECT file_name, file_size, created_at, wrapped_file_key FROM files WHERE user_id = $1`, c.Keys["user_id"])
+	rows, err := h.Database.QueryContext(c.Request.Context(), `SELECT file_name, file_size, created_at, wrapped_file_key FROM files WHERE user_id = $1`, c.Keys["user_id"])
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			h.Logger.Errorf("[ListFiles] closing rows: %s", err)
+		}
+	}()
 
 	output := ListFilesRes{
 		Files: []File{},
@@ -303,6 +317,11 @@ func (h *Handler) ListFiles(c *gin.Context) {
 			WrappedFileKey: wrappedFileKey,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		h.Logger.Errorf("[ListFiles] iterating file rows: %s", err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
+		return
+	}
 
 	c.JSON(http.StatusOK, output)
 }
@@ -315,7 +334,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 		return
 	}
 	// Check that this account has enough space left for upload
-	storageMetrics, err := database.GetUserStorageMetrics(h.Database, c.Keys["user_id"].(int32))
+	storageMetrics, err := database.GetUserStorageMetrics(c.Request.Context(), h.Database, c.Keys["user_id"].(int32))
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -336,7 +355,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	fileMimeType := file.Header.Get("Content-Type")
 
 	stmt := `INSERT INTO files(user_id, location, file_name, file_size, file_type, wrapped_file_key) VALUES($1, $2, $3, $4, $5, $6)`
-	_, err = h.Database.Exec(stmt, c.Keys["user_id"], location, file.Filename, file.Size, fileMimeType, wrappedFileKey)
+	_, err = h.Database.ExecContext(c.Request.Context(), stmt, c.Keys["user_id"], location, file.Filename, file.Size, fileMimeType, wrappedFileKey)
 	if err != nil {
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
@@ -355,21 +374,17 @@ func (h *Handler) UploadFile(c *gin.Context) {
 
 func (h *Handler) DownloadFile(c *gin.Context) {
 	fileName := c.Query("name")
-	rows, err := h.Database.Query(`SELECT location, file_type, file_size FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName)
-	if err != nil {
-		middleware.Abort(c, http.StatusBadRequest, err)
-		return
-	}
-	if !rows.Next() {
-		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
-		return
-	}
-	defer rows.Close()
-
 	var location string
 	var fileSize int64
 	var fileMimeType string
-	if rows.Scan(&location, &fileMimeType, &fileSize) != nil {
+	err := h.Database.QueryRowContext(c.Request.Context(), `SELECT location, file_type, file_size FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], fileName).
+		Scan(&location, &fileMimeType, &fileSize)
+	if errors.Is(err, sql.ErrNoRows) {
+		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
+		return
+	}
+	if err != nil {
+		h.Logger.Errorf("[DownloadFile] lookup %q: %s", fileName, err)
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
@@ -391,26 +406,21 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	rows, err := h.Database.Query(`SELECT id, location FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], req.Name)
-	if err != nil {
-		middleware.Abort(c, http.StatusInternalServerError, err)
-		return
-	}
-	if !rows.Next() {
+	var id int
+	var location string
+	err = h.Database.QueryRowContext(c.Request.Context(), `SELECT id, location FROM files WHERE user_id = $1 and file_name = $2`, c.Keys["user_id"], req.Name).
+		Scan(&id, &location)
+	if errors.Is(err, sql.ErrNoRows) {
 		middleware.Abort(c, http.StatusNotFound, errors.New("file not found"))
 		return
 	}
-	defer rows.Close()
-
-	var id int
-	var location string
-	err = rows.Scan(&id, &location)
 	if err != nil {
-		middleware.Abort(c, http.StatusBadRequest, err)
+		h.Logger.Errorf("[DeleteFile] lookup %q: %s", req.Name, err)
+		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
 	}
 
-	_, err = h.Database.Exec(`DELETE FROM files WHERE id = $1`, id)
+	_, err = h.Database.ExecContext(c.Request.Context(), `DELETE FROM files WHERE id = $1`, id)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -434,7 +444,7 @@ func (h *Handler) CreateLink(c *gin.Context) {
 		return
 	}
 
-	dbFile, found, err := database.GetFileByName(h.Database, userID, req.Name)
+	dbFile, found, err := database.GetFileByName(c.Request.Context(), h.Database, userID, req.Name)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -452,7 +462,7 @@ func (h *Handler) CreateLink(c *gin.Context) {
 	accessKey := hex.EncodeToString(random)
 
 	stmt := `INSERT INTO links(access_key, access_count, file_id, created_by) VALUES($1, $2, $3, $4)`
-	_, err = h.Database.Exec(stmt, accessKey, 0, dbFile.Id, userID)
+	_, err = h.Database.ExecContext(c.Request.Context(), stmt, accessKey, 0, dbFile.Id, userID)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -472,7 +482,7 @@ func (h *Handler) GetLink(c *gin.Context) {
 	var userID = c.Keys["user_id"].(int32)
 	fileName := c.Query("name")
 
-	dbFile, found, err := database.GetFileByName(h.Database, userID, fileName)
+	dbFile, found, err := database.GetFileByName(c.Request.Context(), h.Database, userID, fileName)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -482,7 +492,7 @@ func (h *Handler) GetLink(c *gin.Context) {
 		return
 	}
 
-	dbLink, found, err := database.GetLinkByFileId(h.Database, userID, dbFile.Id)
+	dbLink, found, err := database.GetLinkByFileId(c.Request.Context(), h.Database, userID, dbFile.Id)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -510,7 +520,7 @@ func (h *Handler) DeleteLink(c *gin.Context) {
 		return
 	}
 
-	dbFile, found, err := database.GetFileByName(h.Database, userID, req.Name)
+	dbFile, found, err := database.GetFileByName(c.Request.Context(), h.Database, userID, req.Name)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -521,7 +531,7 @@ func (h *Handler) DeleteLink(c *gin.Context) {
 	}
 
 	stmt := `DELETE FROM links WHERE created_by = $1 AND file_id = $2`
-	_, err = h.Database.Exec(stmt, userID, dbFile.Id)
+	_, err = h.Database.ExecContext(c.Request.Context(), stmt, userID, dbFile.Id)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -532,24 +542,19 @@ func (h *Handler) DeleteLink(c *gin.Context) {
 
 func (h *Handler) PreviewLink(c *gin.Context) {
 	accessKey := c.Query("access_key")
-	rows, err := h.Database.Query(`SELECT file_id FROM links WHERE access_key = $1`, accessKey)
-	if err != nil {
-		middleware.Abort(c, http.StatusBadRequest, err)
-		return
-	}
-	if !rows.Next() {
+	var file_id int32
+	err := h.Database.QueryRowContext(c.Request.Context(), `SELECT file_id FROM links WHERE access_key = $1`, accessKey).Scan(&file_id)
+	if errors.Is(err, sql.ErrNoRows) {
 		middleware.Abort(c, http.StatusNotFound, errors.New("link not found"))
 		return
 	}
-	defer rows.Close()
-
-	var file_id int32
-	if rows.Scan(&file_id) != nil {
+	if err != nil {
+		h.Logger.Errorf("[PreviewLink] lookup link: %s", err)
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
-	dbFile, found, err := database.GetFileById(h.Database, file_id)
+	dbFile, found, err := database.GetFileById(c.Request.Context(), h.Database, file_id)
 	if err != nil {
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
@@ -569,24 +574,19 @@ func (h *Handler) PreviewLink(c *gin.Context) {
 
 func (h *Handler) DownloadLink(c *gin.Context) {
 	accessKey := c.Query("access_key")
-	rows, err := h.Database.Query(`SELECT id, file_id FROM links WHERE access_key = $1`, accessKey)
-	if err != nil {
-		middleware.Abort(c, http.StatusBadRequest, err)
-		return
-	}
-	if !rows.Next() {
+	var link_id, file_id int32
+	err := h.Database.QueryRowContext(c.Request.Context(), `SELECT id, file_id FROM links WHERE access_key = $1`, accessKey).Scan(&link_id, &file_id)
+	if errors.Is(err, sql.ErrNoRows) {
 		middleware.Abort(c, http.StatusNotFound, errors.New("link not found"))
 		return
 	}
-	defer rows.Close()
-
-	var link_id, file_id int32
-	if rows.Scan(&link_id, &file_id) != nil {
+	if err != nil {
+		h.Logger.Errorf("[DownloadLink] lookup link: %s", err)
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
 	}
 
-	dbFile, found, err := database.GetFileById(h.Database, file_id)
+	dbFile, found, err := database.GetFileById(c.Request.Context(), h.Database, file_id)
 	if err != nil {
 		middleware.Abort(c, http.StatusBadRequest, err)
 		return
@@ -599,7 +599,11 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 	go func() {
 		// Only increment download count if it's not a range request, (Unencrypted video files will use this for streaming into the browser)
 		if c.GetHeader("Range") == "" {
-			err := database.UpdateLinkDownloadCount(h.Database, link_id)
+			// Detached from the request: net/http cancels the request context as
+			// soon as ServeHTTP returns, which is before this goroutine runs.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := database.UpdateLinkDownloadCount(ctx, h.Database, link_id)
 			if err != nil {
 				h.Logger.Warnf("Failed to update link download count: %s", err)
 			}
@@ -618,7 +622,7 @@ func (h *Handler) DownloadLink(c *gin.Context) {
 func (h *Handler) RequestResetPassword(c *gin.Context) {
 	// Get user
 	emailAddress := c.Query("email_address")
-	user, err := database.GetUserByEmail(h.Database, emailAddress)
+	user, err := database.GetUserByEmail(c.Request.Context(), h.Database, emailAddress)
 	if err != nil {
 		h.Logger.Errorf("Failed to get user %s from database: %s", emailAddress, err)
 		middleware.Abort(c, http.StatusInternalServerError, errors.New("failed to get user from database"))
@@ -639,7 +643,7 @@ func (h *Handler) RequestResetPassword(c *gin.Context) {
 	resetCode := hex.EncodeToString(randomBytes)
 
 	// Store reset-code in database
-	_, err = h.Database.Exec(`INSERT INTO password_reset_codes(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
+	_, err = h.Database.ExecContext(c.Request.Context(), `INSERT INTO password_reset_codes(user_id, reset_code) VALUES ($1, $2)`, user.ID, resetCode)
 	if err != nil {
 		h.Logger.Errorf("Failed to save reset-code into database: %s", err)
 		middleware.Abort(c, http.StatusUnauthorized, errors.New("failed to save reset-code into database"))
@@ -666,7 +670,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	}
 
 	// Get password reset entry
-	dbPR, err := database.GetPasswordResetByCode(h.Database, req.ResetCode)
+	dbPR, err := database.GetPasswordResetByCode(c.Request.Context(), h.Database, req.ResetCode)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
 		return
@@ -676,9 +680,12 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Delete reset-code (1 time use) regardless of success or failure
+	// Delete reset-code (1 time use) regardless of success or failure. Detached
+	// from the request so a disconnected client cannot leave the code valid.
 	defer func() {
-		_, err = h.Database.Exec(`DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, err = h.Database.ExecContext(ctx, `DELETE FROM password_reset_codes WHERE id=$1`, dbPR.Id)
 		if err != nil {
 			h.Logger.Warnf("Failed to delete reset-code %d after successful use: %s", dbPR.Id, err)
 		}
@@ -700,7 +707,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 	// Store new details
-	_, err = h.Database.Exec(`UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
+	_, err = h.Database.ExecContext(c.Request.Context(), `UPDATE users SET password=$1, client_random_value=$2, wrapped_account_key=$3 WHERE id=$4`,
 		passwordHash, req.NewClientRandomValue, req.NewWrappedAccountKey, dbPR.UserId)
 	if err != nil {
 		middleware.Abort(c, http.StatusInternalServerError, err)
@@ -721,7 +728,9 @@ func (h *Handler) NewWebsocket(c *gin.Context) {
 	randomBytes, err := generateRandomBytes(16)
 	if err != nil {
 		h.Logger.Errorf("[WS] failed to generate websocket key: %s", err)
-		conn.Close()
+		if cerr := conn.Close(); cerr != nil {
+			h.Logger.Warnf("[WS] closing connection: %s", cerr)
+		}
 		return
 	}
 
